@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Débogage",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/SnapCodeFlow.exe",
+            "cwd": "${workspaceFolder}",
+            "MIMode": "gdb",
+            "miDebuggerPath": "gdb.exe",
+            "externalConsole": true
+        }
+    ]
+}

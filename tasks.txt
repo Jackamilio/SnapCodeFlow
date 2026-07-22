@@ -1,0 +1,5 @@
+Snap en prenant en compte le cluster et pas juste le bloc pour éviter des superpositions
+
+---------- Terminé ----------
+Preview complète d'un cluster qui est drag & drop
+Pouvoir snap d'un container à l'autre

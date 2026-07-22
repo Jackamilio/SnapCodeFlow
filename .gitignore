@@ -1,0 +1,15 @@
+build/
+.vscode/ipch/
+.vscode/*.db
+*.exe
+*.o
+*.d
+
+imgui.ini
+external/imgui/.github/
+external/imgui/backends/
+external/imgui/docs/
+external/imgui/examples/
+
+settings.txt
+yves-barthez-zelda-tearsofthekingdom.png
