@@ -187,9 +187,34 @@ struct TestPuzzle : Main {
     }
 };
 
+struct TestSimpleBlocks : Main {
+    SnapBlock::Container c;
+
+    TestSimpleBlocks() {
+        SpawnBlock();
+    }
+
+    void SpawnBlock() {
+        c.Add(new SnapBlock(Vector2{(float)GetRandomValue(50,550),(float)GetRandomValue(50,550)}));
+    }
+
+    void Loop() override {
+        ImGui::Begin("Plain blocks");
+
+        c.Update();
+
+        if (ImGui::Button("Spawn")) {
+            SpawnBlock();
+        }
+
+        ImGui::End();
+    }
+};
+
 int main()
 {
-    TestInstructions().MainLoop();
-    //TestPuzzle().MainLoop();
+    //TestSimpleBlocks().MainLoop();
+    TestPuzzle().MainLoop();
+    //TestInstructions().MainLoop();
     return 0;
 }

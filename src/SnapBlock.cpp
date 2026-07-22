@@ -5,15 +5,12 @@
 
 #include <iostream>
 
-//unsigned int loopcounter = 0;
 std::map<SnapBlock*,bool> dropFail;
 
 SnapBlock* setDraggedBlock = nullptr;
 SnapBlock* draggedBlock = nullptr;
 
 void SnapBlock::Prepare() {
-    //++loopcounter;
-
     for(auto& sb : dropFail) {
         sb.first->pos = sb.first->clicpos;
         //restore previous connexion
@@ -69,7 +66,7 @@ void SnapBlock::Container::Update()
         if (snaptryer) {
             snapto = snaptryer->GetSnapDrop(droploc,*this);
             if (snapto) {
-                ImGui::GetWindowDrawList()->AddRect(windowpos + droploc, windowpos + droploc + snaptryer->size, toImGuiCol(YELLOW));
+                snaptryer->DrawShadow(ImGui::GetWindowDrawList(), windowpos + droploc);
             }
         }
         if (dropped) {
@@ -103,7 +100,7 @@ void SnapBlock::Container::Add(SnapBlock* r) {
 }
 
 SnapBlock::SnapBlock(Vector2 startpos)
-    : owner(nullptr), cluster(new Set), pos(startpos), clicpos({0.0f, 0.0f}), size(60.0f, 60.0f)//, wasdragging(false)//, lastloopid(0)
+    : owner(nullptr), cluster(new Set), pos(startpos), clicpos({0.0f, 0.0f}), size(60.0f, 60.0f)
 {
     cluster->emplace(this);
 }
@@ -199,12 +196,53 @@ void SnapBlock::Draw(ImDrawList *drawList, const Vector2& pos)
     drawList->AddRectFilled(pos, pos+size, toImGuiCol(ImGui::IsItemHovered() ? LIGHTGRAY : GRAY));
 }
 
+void SnapBlock::DrawShadow(ImDrawList *drawList, const Vector2 &pos)
+{
+    //drawList->AddRect(pos, pos + size, toImGuiCol(YELLOW));
+
+    Vector2 shift = pos - this->pos;
+
+    const float dt = 8.0f;
+    for(auto& sb : *cluster) {
+        Vector2 diag{sb->size.y,sb->size.y};
+        Vector2 cursor = sb->pos + shift;
+        cursor.x = floorf(cursor.x / dt) * dt - sb->size.y;
+        float targety = cursor.y;
+        cursor.y = floorf(cursor.y / dt) * dt;
+        cursor.x += targety - cursor.y;
+        cursor.y = targety;
+        Vector2 sbpos = sb->pos + shift;
+        if (cursor.x < sb->pos.x + shift.x - sb->size.y) cursor.x += dt;
+        for(;cursor.x < sbpos.x + sb->size.x; cursor.x += dt) {
+            Vector2 a = cursor;
+            Vector2 b = cursor + diag;
+            if (a.x < sbpos.x) {
+                a.y += sbpos.x - a.x;
+                a.x = sbpos.x;
+            }
+            if (b.x > sbpos.x + sb->size.x) {
+                b.y -= b.x - (sbpos.x + sb->size.x);
+                b.x = sbpos.x + sb->size.x;
+            }
+            drawList->AddLine(a, b, toImGuiCol(YELLOW));
+        }
+    }
+}
+
 bool SnapBlock::CanSnap(Vector2 &io_at, const SnapBlock* from) const
 {
-    (void)from;
     Vector2 validpoints[] = {{0,-size.y},{size.x,0},{0,size.y},{-size.x,0}};
 
-    return CheckSnapLocations(validpoints, io_at);
+    // return CheckSnapLocationsToSelf(validpoints, io_at);
+    for(auto& sb : *from->cluster) {
+        Vector2 shift = sb->pos - from->pos;
+        Vector2 io_atbis = io_at + shift;
+        if (CheckSnapLocationsToSelf(validpoints, io_atbis)) {
+            io_at = io_atbis - shift;
+            return true;
+        }
+    }
+    return false;
 }
 
 void SnapBlock::WhenDragStarts()
@@ -228,7 +266,7 @@ void SnapBlock::Unsnap()
     }
 }
 
-bool SnapBlock::CheckSnapLocations(const std::span<Vector2>& locations, Vector2 &io_at, float distance) const
+bool SnapBlock::CheckSnapLocationsToSelf(const std::span<Vector2>& locations, Vector2 &io_at, float distance) const
 {
     for (Vector2& vp : locations) {
         Vector2 l = pos + vp;

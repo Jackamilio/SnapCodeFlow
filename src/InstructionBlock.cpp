@@ -31,14 +31,14 @@ bool InstructionBlock::CanSnap(Vector2& io_at, const SnapBlock* from) const {
     }
     validpoints.push_back({0,size.y});
 
-    if (CheckSnapLocations(validpoints, io_at, size.y)) {
+    if (CheckSnapLocationsToSelf(validpoints, io_at, size.y)) {
         return true;
     }
     else if (from->cluster->size() > 1) {
         const InstructionBlock* ib = dynamic_cast<const InstructionBlock*>(from);
         if (ib) {
             io_at.y += ib->GetClusterHeight();
-            if (CheckSnapLocations(validpoints, io_at, size.y)) {
+            if (CheckSnapLocationsToSelf(validpoints, io_at, size.y)) {
                 return true;
             }
         }

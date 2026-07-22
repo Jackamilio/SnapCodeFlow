@@ -46,6 +46,7 @@ struct SnapBlock {
     void SnapWith(SnapBlock& other, const Vector2& at);
 
     virtual void Draw(ImDrawList *drawList, const Vector2& pos);
+    virtual void DrawShadow(ImDrawList *drawList, const Vector2& pos);
     virtual bool CanSnap(Vector2& io_at, const SnapBlock* from) const;
 
     virtual void WhenDragStarts();
@@ -53,5 +54,5 @@ struct SnapBlock {
     virtual void Unsnap();
 
     void MergeClusters(SnapBlock& other);
-    bool CheckSnapLocations(const std::span<Vector2>& locations, Vector2& io_at, float distance = 20.0f) const;
+    bool CheckSnapLocationsToSelf(const std::span<Vector2>& locations, Vector2& io_at, float distance = 20.0f) const;
 };
