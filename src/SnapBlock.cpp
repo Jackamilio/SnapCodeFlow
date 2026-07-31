@@ -47,8 +47,14 @@ void SnapBlock::Container::Update()
     windowpos = ImGui::GetCursorScreenPos();
     windowsize = ImGui::GetWindowSize();
 
-    for(SnapBlock* r : collec) {
-        r->Update();
+    for(SnapBlock* sb : collec) {
+        sb->Update();
+    }
+
+    for(auto it = collec.rbegin(); it != collec.rend(); ++it) {
+        auto& sb = *it;
+        ImDrawList *drawList = (sb->cluster->find(draggedBlock) != sb->cluster->end()) ? ImGui::GetForegroundDrawList() : ImGui::GetWindowDrawList();
+        sb->Draw(drawList, windowpos + sb->pos);
     }
 
     ImGui::PushID(this);
@@ -148,10 +154,6 @@ void SnapBlock::Update() {
             }
         }
     }
-
-    ImDrawList *drawList = (cluster->find(draggedBlock) != cluster->end()) ? ImGui::GetForegroundDrawList() : ImGui::GetWindowDrawList();
-
-    Draw(drawList, owner->windowpos + pos);
 
     ImGui::SetCursorScreenPos(savescreenpos);
     ImGui::PopID();

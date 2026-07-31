@@ -14,7 +14,7 @@ struct SnapBlock {
             return a->pos.y == b->pos.y ? a < b : a->pos.y < b->pos.y;
         }
     };
-    typedef std::unordered_set<SnapBlock*> Set;
+    typedef std::set<SnapBlock*> Set;
     typedef std::set<SnapBlock*,CompareY> OrderedSet;
 
     struct Container {

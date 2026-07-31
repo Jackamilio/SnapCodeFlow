@@ -1,6 +1,7 @@
 Vérifier la collision avant de drop pour éviter des superpositions
 
 ---------- Terminé ----------
+Régler le bug qui attrape le bloc le plus en dessous (affiché en premier)
 Snap en prenant en compte le cluster et pas juste le bloc
 Preview complète d'un cluster qui est drag & drop
 Pouvoir snap d'un container à l'autre
