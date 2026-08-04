@@ -135,6 +135,7 @@ struct TestInstructions : Main {
 
 struct TestPuzzle : Main {
     SnapBlock::Container board;
+    SnapBlock::Container side;
     PuzzlePiece::WholePuzzle puzzle;
     double loadfailtime;
 
@@ -183,6 +184,7 @@ struct TestPuzzle : Main {
         if (GetTime() < loadfailtime) {
             ImGui::TextColored({1,0,0,1}, "Failed to load the file.");
         }
+        side.Update();
         ImGui::End();
     }
 };
