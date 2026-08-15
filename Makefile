@@ -1,5 +1,7 @@
 CXX = g++
 
+LUAJIT_INCLUDE = C:/msys64/ucrt64/include/luajit-2.1
+
 rwildcard = \
     $(foreach d,$(wildcard $1/*),$(call rwildcard,$d,$2)) \
     $(filter $(subst *,%,$2),$(wildcard $1/$2))
@@ -13,7 +15,8 @@ CXXFLAGS = \
 	-MP \
 	-Iinclude \
 	-Iexternal/imgui \
-	-Iexternal/rlImGui
+	-Iexternal/rlImGui \
+	-I$(LUAJIT_INCLUDE)
 
 LDFLAGS = \
 	-lraylib \
@@ -21,7 +24,7 @@ LDFLAGS = \
 	-lgdi32 \
 	-lwinmm \
 	-lcomdlg32 \
-	-llua
+	-lluajit-5.1
 
 SRC = \
 	$(call rwildcard,src,*.cpp) \

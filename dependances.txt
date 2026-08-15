@@ -1,0 +1,8 @@
+--- hors projet ---
+nlohmann/json.hpp
+raylib
+luajit
+
+--- dossier external ---
+imgui
+rlimgui

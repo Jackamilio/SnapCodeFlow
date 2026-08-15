@@ -9,6 +9,7 @@
 #include <sstream>
 #include <span>
 #include <iostream>
+#include <fstream>
 
 #include "SnapBlock.h"
 #include "PuzzlePiece.h"
@@ -16,6 +17,7 @@
 
 #include "Utils.h"
 
+#include <nlohmann/json.hpp>
 #include <lua.hpp>
 
 std::map<const SnapBlock*, unsigned int> blockIDs;
@@ -215,17 +217,83 @@ struct TestSimpleBlocks : Main {
     }
 };
 
+void GenerateLuaRaylibBindings(const char* outputfile);
+
+struct TestLuaBindings : Main {
+
+    lua_State* lua;
+    char commandtest[512];
+
+    TestLuaBindings() : lua(luaL_newstate()), commandtest("print('Hello from Lua!')") {
+        luaL_openlibs(lua);
+    }
+
+    void Loop() override {
+        ImGui::Begin("Lua workspace");
+        if (ImGui::Button("Generate bindings")) {
+            GenerateLuaRaylibBindings("raylib.lua");
+        }
+        ImGui::InputText("Lua command", commandtest, 512);
+        if (ImGui::Button("Try command")) {
+            if (luaL_dostring(lua, commandtest) != LUA_OK) {
+                const char* error = lua_tostring(lua, -1);
+                std::cout << "Erreur lua : " << error << std::endl;
+                lua_pop(lua, 1);
+            }
+        }
+        ImGui::End();
+    }
+
+    ~TestLuaBindings() {
+        lua_close(lua);
+    }
+};
+
 int main()
 {
-    lua_State* lua = luaL_newstate();
-    luaL_openlibs(lua);
-
-    luaL_dostring(lua, "print('Hello from Lua!')");
-
-    lua_close(lua);
-
     //TestSimpleBlocks().MainLoop();
     //TestPuzzle().MainLoop();
-    TestInstructions().MainLoop();
+    //TestInstructions().MainLoop();
+    TestLuaBindings().MainLoop();
     return 0;
+}
+
+using namespace nlohmann;
+using namespace std;
+
+void GenerateLuaRaylibBindings(const char* outputfile) {
+    ifstream file("raylib_api.json");
+    json rlapi = json::parse(file);
+
+    json structs = rlapi["structs"];
+    json functions = rlapi["functions"];
+
+    ofstream out(outputfile);
+    out << "local ffi = require(\"ffi\")" << endl << endl;
+    out << "ffi.cdef[[" << endl;
+
+    for(const auto& s : structs) {
+        out << "typedef struct " << (string)s["name"] << " { ";
+        for(const auto& f : s["fields"]) {
+            out << (string)f["type"] << ' ' << (string)f["name"] << "; ";
+        }
+        out << "} " << (string)s["name"] << ';' << endl;
+    }
+    out << endl;
+
+    for(const auto& f: functions) {
+        string name = f["name"];
+        if (name.starts_with("Draw")) {
+            out << (string)f["returnType"] << ' ' << name << '(';
+            bool first = true;
+            for(const auto& f : f["params"]) {
+                if (!first) out << ", ";
+                first = false;
+                out << (string)f["type"] << ' ' << (string)f["name"];
+            }
+            out << ");" << endl;
+        }
+    }
+
+    out << "]]" << endl;
 }
