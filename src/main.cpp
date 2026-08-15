@@ -16,6 +16,8 @@
 
 #include "Utils.h"
 
+#include <lua.hpp>
+
 std::map<const SnapBlock*, unsigned int> blockIDs;
 
 struct InstructionBlockDebug : InstructionBlock {
@@ -215,8 +217,15 @@ struct TestSimpleBlocks : Main {
 
 int main()
 {
+    lua_State* lua = luaL_newstate();
+    luaL_openlibs(lua);
+
+    luaL_dostring(lua, "print('Hello from Lua!')");
+
+    lua_close(lua);
+
     //TestSimpleBlocks().MainLoop();
-    TestPuzzle().MainLoop();
-    //TestInstructions().MainLoop();
+    //TestPuzzle().MainLoop();
+    TestInstructions().MainLoop();
     return 0;
 }

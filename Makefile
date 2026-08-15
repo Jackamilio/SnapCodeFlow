@@ -20,7 +20,8 @@ LDFLAGS = \
 	-lopengl32 \
 	-lgdi32 \
 	-lwinmm \
-	-lcomdlg32
+	-lcomdlg32 \
+	-llua
 
 SRC = \
 	$(call rwildcard,src,*.cpp) \
