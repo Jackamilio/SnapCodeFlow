@@ -415,7 +415,6 @@ typedef enum { // N-patch layout
     NPATCH_THREE_PATCH_HORIZONTAL = 2
 } NPatchLayout;
 
-
 typedef void (*TraceLogCallback)(int logLevel, const char * text, va_list args);
 typedef unsigned char * (*LoadFileDataCallback)(const char * fileName, int * dataSize);
 typedef bool (*SaveFileDataCallback)(const char * fileName, const void * data, int dataSize);
@@ -1038,4 +1037,44 @@ void AttachAudioMixedProcessor(AudioCallback processor);
 void DetachAudioMixedProcessor(AudioCallback processor);
 ]]
 
-return ffi.load("libraylib")
+local rl = ffi.load("libraylib")
+local coltype = ffi.typeof("Color")
+
+local PI = 3.141592653589793
+local M = setmetatable({
+    RAYLIB_VERSION_MAJOR = 6,
+    RAYLIB_VERSION_MINOR = 1,
+    RAYLIB_VERSION_PATCH = 0,
+    RAYLIB_VERSION = "6.1-dev",
+    PI = 3.141592653589793,
+    DEG2RAD = (PI/180.0),
+    RAD2DEG = (180.0/PI),
+    LIGHTGRAY = coltype( 200, 200, 200, 255 ),
+    GRAY = coltype( 130, 130, 130, 255 ),
+    DARKGRAY = coltype( 80, 80, 80, 255 ),
+    YELLOW = coltype( 253, 249, 0, 255 ),
+    GOLD = coltype( 255, 203, 0, 255 ),
+    ORANGE = coltype( 255, 161, 0, 255 ),
+    PINK = coltype( 255, 109, 194, 255 ),
+    RED = coltype( 230, 41, 55, 255 ),
+    MAROON = coltype( 190, 33, 55, 255 ),
+    GREEN = coltype( 0, 228, 48, 255 ),
+    LIME = coltype( 0, 158, 47, 255 ),
+    DARKGREEN = coltype( 0, 117, 44, 255 ),
+    SKYBLUE = coltype( 102, 191, 255, 255 ),
+    BLUE = coltype( 0, 121, 241, 255 ),
+    DARKBLUE = coltype( 0, 82, 172, 255 ),
+    PURPLE = coltype( 200, 122, 255, 255 ),
+    VIOLET = coltype( 135, 60, 190, 255 ),
+    DARKPURPLE = coltype( 112, 31, 126, 255 ),
+    BEIGE = coltype( 211, 176, 131, 255 ),
+    BROWN = coltype( 127, 106, 79, 255 ),
+    DARKBROWN = coltype( 76, 63, 47, 255 ),
+    WHITE = coltype( 255, 255, 255, 255 ),
+    BLACK = coltype( 0, 0, 0, 255 ),
+    BLANK = coltype( 0, 0, 0, 0 ),
+    MAGENTA = coltype( 255, 0, 255, 255 ),
+    RAYWHITE = coltype( 245, 245, 245, 255 ),
+}, {
+    __index = rl
+})return M

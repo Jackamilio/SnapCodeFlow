@@ -32,14 +32,29 @@ set<string> basicTypes = {
     "uint64_t"
 };
 
-string GetBaseType(string type)
-{
+#define UNROLLDEF(func) \
+    func(INT) \
+    func(FLOAT) \
+    func(FLOAT_MATH) \
+    func(STRING) \
+    func(COLOR)
+#define ENUMDEF(x) x,
+#define PAIRDEF(x) {#x, x},
+
+typedef enum {
+    INVALID = 0, UNROLLDEF(ENUMDEF)
+} EnumValidDefineTypes;
+
+map<string, int> validDefineTypes = {
+    UNROLLDEF(PAIRDEF)
+};
+
+string GetBaseType(string type) {
     istringstream iss(type);
     string word;
     string base;
 
-    while (iss >> word)
-    {
+    while (iss >> word) {
         if (word == "const" ||
             word == "unsigned" ||
             word == "signed")
@@ -57,6 +72,18 @@ string GetBaseType(string type)
     }
 
     return base;
+}
+
+string RemoveFloatSuffix(string value) {
+    for (size_t i = 1; i < value.size(); ++i) {
+        if (value[i] == 'f' && 
+            (isdigit(value[i - 1]) || value[i - 1] == '.')) {
+            value.erase(i, 1);
+            --i;
+        }
+    }
+
+    return value;
 }
 
 void PrintParams(ofstream& out, const json& from) {
@@ -198,7 +225,40 @@ const char* GenerateLuaRaylibBindings(const char* outputfile) {
         out << endl;
     }
 
-    // end the file
-    out << "]]" << endl << endl << "return ffi.load(\"libraylib\")" << endl;
+    // end the cdecl
+    out << "]]" << endl << endl << "local rl = ffi.load(\"libraylib\")" << endl;
+
+    // put define constants in a metatable
+    out << "local coltype = ffi.typeof(\"Color\")" << endl << endl;
+    out << "local PI = 3.141592653589793" << endl; // for FLOAT_MATH, by hand, I don't want to write a preprocessor for two values
+    out << "local M = setmetatable({" << endl;
+    for(const auto& d: defines) {
+        string name = d["name"];
+        switch(validDefineTypes[d["type"]]) {
+            case INT:
+            case FLOAT:
+            case STRING:
+                out << "    " << name << " = " << d["value"] << ',' << endl;
+            break;
+            case FLOAT_MATH:
+                out << "    " << name << " = " << RemoveFloatSuffix(d["value"]) << ',' << endl;
+            break;
+            case COLOR:
+            {
+                string value = d["value"];
+                size_t l = value.find('{');
+                size_t r = value.find('}');
+                if (l != string::npos && l != string::npos) {
+                    value = value.substr(l+1, r-l-1);
+                    out << "    " << name << " = coltype(" << value << ")," << endl;
+                }                
+            }
+            default: break;
+        }
+    }
+    out << "}, {" << endl << "    __index = rl" << endl << "})";
+
+    // we're done
+    out << "return M";
     return nullptr;
 }
