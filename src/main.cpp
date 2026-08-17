@@ -14,11 +14,13 @@
 #include "SnapBlock.h"
 #include "PuzzlePiece.h"
 #include "InstructionBlock.h"
+#include "SnapBlockDesc.h"
 
 #include "Utils.h"
 #include "bindings.h"
 #include <lua.hpp>
 
+void ImGui::ShowDemoWindow(bool* p_open);
 std::map<const SnapBlock*, unsigned int> blockIDs;
 
 struct InstructionBlockDebug : InstructionBlock {
@@ -62,6 +64,7 @@ struct Main {
             rlImGuiBegin();
             SnapBlock::Prepare();
 
+            ImGui::ShowDemoWindow();
             Loop();
             
             BeginDrawing();
@@ -225,6 +228,7 @@ struct TestLuaBindings : Main {
 
     TestLuaBindings() : lua(luaL_newstate()), commandtest("print('Hello from Lua!')"), loopcommand(false) {
         luaL_openlibs(lua);
+        SnapBlocDesc::Load();
     }
 
     void ExecCommand() {
@@ -240,6 +244,9 @@ struct TestLuaBindings : Main {
         if (ImGui::Button("Generate bindings")) {
             GenerateLuaRaylibBindings("raylib.lua");
         }
+        if (ImGui::Button("Generate simple function list file")) {
+            GenerateSimpleFunctionList("raylib_tags_gen.csv");
+        }
         ImGui::InputText("Lua command", commandtest, 512);
         if (ImGui::Button("Try command")) {
             ExecCommand();
@@ -248,10 +255,39 @@ struct TestLuaBindings : Main {
         if (loopcommand) {
             ExecCommand();
         }
+
+        if (ImGui::TreeNode("Functions per tags")) {
+            const ImGuiTreeNodeFlags leafflags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+            for(const auto& tag : SnapBlocDesc::GetTags()) {
+                ImGui::PushID(1);
+                const SnapBlocDesc::List* lt = SnapBlocDesc::GetListFromTag(tag);
+                if (!lt) continue;
+                if (ImGui::TreeNode(tag.c_str(), "%s (%lli)", tag.c_str(), lt->size())) {
+                    for(const auto& sbd : *lt) {
+                        if (ImGui::TreeNode(sbd->name.c_str())) {
+                            ImGui::TreeNodeEx(sbd->name.c_str(), leafflags, "ID %i", sbd->order);
+                            ImGui::TreeNodeEx(sbd->desc.c_str(), leafflags, "Description : \"%s\"", sbd->desc.c_str());
+                            if (ImGui::TreeNode("Tags")) {
+                                for(const auto& t : sbd->tags) {
+                                    ImGui::TreeNodeEx(t.c_str(), leafflags);
+                                }
+                                ImGui::TreePop();
+                            }
+                            ImGui::TreePop();                        
+                        }
+                    }
+                    ImGui::TreePop();                    
+                }
+                ImGui::PopID();
+            }
+            ImGui::TreePop();
+        }
+
         ImGui::End();
     }
 
     ~TestLuaBindings() {
+        SnapBlocDesc::Unload();
         lua_close(lua);
     }
 };

@@ -32,6 +32,7 @@ SRC = \
 	external/imgui/imgui_draw.cpp \
 	external/imgui/imgui_tables.cpp \
 	external/imgui/imgui_widgets.cpp \
+	external/imgui/imgui_demo.cpp \
 	external/rlImGui/rlImGui.cpp
 
 OBJ = $(SRC:%.cpp=build/obj/%.o)

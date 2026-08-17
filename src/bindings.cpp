@@ -1,4 +1,5 @@
 #include "bindings.h"
+#include "utils.h"
 #include <nlohmann/json.hpp>
 #include <string>
 #include <map>
@@ -101,35 +102,19 @@ void PrintParams(ofstream& out, const json& from) {
     out << ");";
 }
 
+#define GENERATE_START LOAD_RAYLIB_API_JSON \
+    /* start output */ \
+    ofstream out(outputfile); \
+    if (!out.is_open()) { \
+        return "Could not create the output file."; \
+    }
+
 const char* GenerateLuaRaylibBindings(const char* outputfile) {
-    // open the json and output files
-    ifstream file("raylib_api.json");
-    if (!file.is_open()) return "Could not open raylib_api.json";
-    json rlapi;
-    try { rlapi = json::parse(file); }
-    catch (const json::parse_error& e) {
-        static char buf[512];
-        sprintf(buf, "Error while parsing raylib.json : %s", e.what());
-        return buf;
-    }
-    ofstream out(outputfile);
-    if (!out.is_open()) {
-        return "Could not create the output file.";
-    }
+    GENERATE_START
 
     // first lines of the ouput
     out << "local ffi = require(\"ffi\")" << endl << endl;
     out << "ffi.cdef[[" << endl;
-
-    // acquire the main top fields
-#define SHORTCUT(x) if (!rlapi.contains(#x)) {return "Field " #x " is not present in raylib_api.json"; } json x = rlapi[#x]
-    SHORTCUT(defines);
-    SHORTCUT(structs);
-    SHORTCUT(aliases);
-    SHORTCUT(enums);
-    SHORTCUT(callbacks);
-    SHORTCUT(functions);
-#undef SHORTCUT
 
     // first try to detect unknown types
     set<string> knownTypes = basicTypes;
@@ -260,5 +245,16 @@ const char* GenerateLuaRaylibBindings(const char* outputfile) {
 
     // we're done
     out << "return M";
+    return nullptr;
+}
+
+const char* GenerateSimpleFunctionList(const char* outputfile) {
+    GENERATE_START
+
+    // just list all functions line by line
+    for (const auto& f : functions) {
+        out << (string)f["name"] << endl;
+    }
+
     return nullptr;
 }
