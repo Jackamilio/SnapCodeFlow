@@ -3,8 +3,10 @@
 #include <stdio.h>
 #include "utils.h"
 
-InstructionBlock::InstructionBlock(Vector2 startpos)
+InstructionBlock::InstructionBlock(const SnapBlocDesc& description, Vector2 startpos)
     : SnapBlock(startpos)
+    , desc(description)
+    , anchor(nullptr)
     , topsibling(nullptr)
     , bottomsibling(nullptr)
 {
@@ -12,9 +14,10 @@ InstructionBlock::InstructionBlock(Vector2 startpos)
     size.y = 30.0f;
 }
 
-// void InstructionBlock::Draw(ImDrawList *drawList, const Vector2& pos) {
-//     SnapBlock::Draw(drawList,pos);
-// }
+void InstructionBlock::Draw(ImDrawList *drawList, const Vector2& pos) {
+    SnapBlock::Draw(drawList,pos);
+    drawList->AddText(pos, toImGuiCol(BLACK), desc.name.c_str());
+}
 
 float InstructionBlock::GetClusterHeight() const {
     float clusterheight = 0.0f;
@@ -25,6 +28,9 @@ float InstructionBlock::GetClusterHeight() const {
 }
 
 bool InstructionBlock::CanSnap(Vector2& io_at, const SnapBlock* from) const {
+    const InstructionBlock* ib = dynamic_cast<const InstructionBlock*>(from);
+    if (anchor || (ib && ib->anchor)) return false;
+
     std::vector<Vector2> validpoints;
     if (!topsibling) {
         validpoints.push_back({0,-size.y});
@@ -34,20 +40,13 @@ bool InstructionBlock::CanSnap(Vector2& io_at, const SnapBlock* from) const {
     if (CheckSnapLocationsToSelf(validpoints, io_at, size.y)) {
         return true;
     }
-    else if (from->cluster->size() > 1) {
-        const InstructionBlock* ib = dynamic_cast<const InstructionBlock*>(from);
-        if (ib) {
-            io_at.y += ib->GetClusterHeight();
-            if (CheckSnapLocationsToSelf(validpoints, io_at, size.y)) {
-                return true;
-            }
+    else if (ib && from->cluster->size() > 1) {
+        io_at.y += ib->GetClusterHeight();
+        if (CheckSnapLocationsToSelf(validpoints, io_at, size.y)) {
+            return true;
         }
     }
     return false;
-}
-
-void InstructionBlock::WhenDragStarts() {
-    Unsnap();
 }
 
 InstructionBlock* InstructionBlock::GetFirstSibling() {
@@ -64,6 +63,18 @@ InstructionBlock* InstructionBlock::GetLastSibling() {
         current = current->bottomsibling;
     }
     return current;
+}
+
+void InstructionBlock::WhenDragStarts() {
+    if (anchor && owner) {
+        InstructionBlock* duplicate = new InstructionBlock(desc);
+        duplicate->pos = *anchor;
+        duplicate->anchor = anchor;
+        duplicate->size = size;
+        anchor = nullptr;
+        owner->Add(duplicate);
+    }
+    Unsnap();
 }
 
 void InstructionBlock::WhenSnapped(SnapBlock& other) {
@@ -102,6 +113,11 @@ void InstructionBlock::WhenSnapped(SnapBlock& other) {
             current = current->bottomsibling;
         }
     }
+}
+
+void InstructionBlock::WhenDropFailed()
+{
+    RequestDeletion();
 }
 
 void InstructionBlock::Unsnap() {

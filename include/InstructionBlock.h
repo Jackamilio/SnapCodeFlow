@@ -3,27 +3,31 @@
 #include <map>
 
 #include "SnapBlock.h"
+#include "SnapBlockDesc.h"
 
 struct InstructionBlock : SnapBlock
 {
+    const SnapBlocDesc& desc;
+    Vector2* anchor;
+
     InstructionBlock* topsibling;
     InstructionBlock* bottomsibling;
 
-    InstructionBlock(Vector2 startpos = Vector2{0.0f, 0.0f});
+    InstructionBlock(const SnapBlocDesc& description, Vector2 startpos = Vector2{0.0f, 0.0f});
 
-    //void Draw(ImDrawList* drawList, const Vector2& pos) override;
+    void Draw(ImDrawList* drawList, const Vector2& pos) override;
 
     float GetClusterHeight() const;
 
     bool CanSnap(Vector2& io_at, const SnapBlock* from) const override;
 
-    void WhenDragStarts() override;
 
     InstructionBlock* GetFirstSibling();
-
     InstructionBlock* GetLastSibling();
 
+    void WhenDragStarts() override;
     void WhenSnapped(SnapBlock& other) override;
+    void WhenDropFailed() override;
 
     void Unsnap() override;
 };

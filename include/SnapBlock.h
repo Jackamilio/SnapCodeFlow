@@ -6,8 +6,6 @@
 #include <span>
 #include <map>
 
-class SnapBlockContainer;
-
 struct SnapBlock {
     struct CompareY {
         bool operator()(const SnapBlock* a, const SnapBlock*b) const {
@@ -50,8 +48,11 @@ struct SnapBlock {
     virtual bool CanSnap(Vector2& io_at, const SnapBlock* from) const;
 
     virtual void WhenDragStarts();
+    virtual void WhenDropFailed();
     virtual void WhenSnapped(SnapBlock& other);
     virtual void Unsnap();
+
+    void RequestDeletion();
 
     void MergeClusters(SnapBlock& other);
     bool CheckSnapLocationsToSelf(const std::span<Vector2>& locations, Vector2& io_at, float distance = 20.0f) const;

@@ -23,24 +23,24 @@
 void ImGui::ShowDemoWindow(bool* p_open);
 std::map<const SnapBlock*, unsigned int> blockIDs;
 
-struct InstructionBlockDebug : InstructionBlock {
+// struct InstructionBlockDebug : InstructionBlock {
 
-    InstructionBlockDebug(Vector2 startpos = Vector2{0.0f, 0.0f})
-        : InstructionBlock(startpos)
-    {
-        static unsigned int idcounter = 0;
-        blockIDs[this] = ++idcounter;
-    }
+//     InstructionBlockDebug(Vector2 startpos = Vector2{0.0f, 0.0f})
+//         : InstructionBlock(startpos)
+//     {
+//         static unsigned int idcounter = 0;
+//         blockIDs[this] = ++idcounter;
+//     }
 
-    void Draw(ImDrawList *drawList, const Vector2& pos) override {
-        SnapBlock::Draw(drawList,pos);
+//     void Draw(ImDrawList *drawList, const Vector2& pos) override {
+//         SnapBlock::Draw(drawList,pos);
 
-        char buf[64];
-        sprintf(buf,"%d",blockIDs[this]);
+//         char buf[64];
+//         sprintf(buf,"%d",blockIDs[this]);
 
-        drawList->AddText(pos,toImGuiCol(GREEN), buf);
-    }
-};
+//         drawList->AddText(pos,toImGuiCol(GREEN), buf);
+//     }
+// };
 
 struct Main {
     Main() {
@@ -89,12 +89,37 @@ struct TestInstructions : Main {
     SnapBlock::Container c1;
     SnapBlock::Container c2;
 
-    void NewRandomBlock() {
-        c1.Add(new InstructionBlockDebug({(float)GetRandomValue(10,210),(float)GetRandomValue(10,210)}));
-    }
+    SnapBlock::Container models;
+
+    // void NewRandomBlock() {
+    //     c1.Add(new InstructionBlockDebug({(float)GetRandomValue(10,210),(float)GetRandomValue(10,210)}));
+    // }
 
     TestInstructions() {
-        NewRandomBlock();
+        SnapBlocDesc::Load();
+
+        const SnapBlocDesc::List* tm = SnapBlocDesc::GetListFromTag("test");
+
+        if (!tm) return;
+        Vector2 mpos{10,10};
+        for(const auto& sbd : *tm) {
+            InstructionBlock* ib = new InstructionBlock(*sbd, mpos);
+            ib->anchor = new Vector2(mpos);
+            models.Add(ib);
+            mpos.y += 35.0f;
+        }
+    }
+
+    ~TestInstructions() {
+        for(auto& sb : models.collec) {
+            InstructionBlock* ib = dynamic_cast<InstructionBlock*>(sb);
+            if (ib) {
+                delete ib->anchor;
+                delete ib;
+            }
+        }
+
+        SnapBlocDesc::Unload();
     }
 
     static void TrackInstructionBlockClusters(const SnapBlock::Container& container) {
@@ -132,10 +157,14 @@ struct TestInstructions : Main {
         ImGui::Text("Bonjour");
         ImGui::LabelText("C1 size", "%lld", c1.collec.size());
         ImGui::LabelText("C2 size", "%lld", c2.collec.size());
-        if (ImGui::Button("Spawn new block")) {
-            NewRandomBlock();
-        }
+        // if (ImGui::Button("Spawn new block")) {
+        //     NewRandomBlock();
+        // }
 
+        ImGui::End();
+
+        ImGui::Begin("Models");
+        models.Update();
         ImGui::End();
     }
 };
@@ -296,7 +325,7 @@ int main()
 {
     //TestSimpleBlocks().MainLoop();
     //TestPuzzle().MainLoop();
-    //TestInstructions().MainLoop();
-    TestLuaBindings().MainLoop();
+    TestInstructions().MainLoop();
+    //TestLuaBindings().MainLoop();
     return 0;
 }

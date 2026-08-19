@@ -6,6 +6,7 @@
 #include <iostream>
 
 std::map<SnapBlock*,bool> dropFail;
+std::set<SnapBlock*> deleteRequests;
 
 SnapBlock* setDraggedBlock = nullptr;
 SnapBlock* draggedBlock = nullptr;
@@ -21,8 +22,16 @@ void SnapBlock::Prepare() {
                 sb.first->SnapWith(*snapto,droploc);
             }
         }
+        sb.first->WhenDropFailed();
     }
     dropFail.clear();
+    for(auto& dr : deleteRequests) {
+        if (dr->owner) {
+            dr->owner->collec.erase(dr);
+        }
+        delete dr;
+    }
+    deleteRequests.clear();
 
     if (setDraggedBlock) {
         draggedBlock = setDraggedBlock;
@@ -254,6 +263,11 @@ void SnapBlock::WhenDragStarts()
     }
 }
 
+void SnapBlock::WhenDropFailed()
+{
+    // nothing
+}
+
 void SnapBlock::WhenSnapped(SnapBlock& other)
 {
     (void)other;
@@ -266,6 +280,11 @@ void SnapBlock::Unsnap()
         cluster = new Set;
         cluster->emplace(this);
     }
+}
+
+void SnapBlock::RequestDeletion()
+{
+    deleteRequests.emplace(this);
 }
 
 bool SnapBlock::CheckSnapLocationsToSelf(const std::span<Vector2>& locations, Vector2 &io_at, float distance) const
