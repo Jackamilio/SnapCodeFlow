@@ -14,7 +14,7 @@ PuzzlePiece::PuzzlePiece(Vector2 p, WholePuzzle& puzzle, int id) : SnapBlock(p),
     uv_max = {float(x+1) * size.x / fw, float(y+1) * size.y / fh};
 }
 
-void PuzzlePiece::Draw(ImDrawList *drawList, const Vector2& pos) {
+void PuzzlePiece::DrawLining(ImDrawList *drawList, const Vector2& pos) {
     drawList->AddImage(ImTextureID(puzzle.image.id),pos,pos+size,uv_min,uv_max);
 }
 

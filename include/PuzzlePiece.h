@@ -19,6 +19,6 @@ struct PuzzlePiece : SnapBlock {
 
     PuzzlePiece(Vector2 p, WholePuzzle& puzzle, int id);
 
-    virtual void Draw(ImDrawList *drawList, const Vector2& pos);
+    virtual void DrawLining(ImDrawList *drawList, const Vector2& pos);
     virtual bool CanSnap(Vector2& io_at, const SnapBlock* from) const;
 };

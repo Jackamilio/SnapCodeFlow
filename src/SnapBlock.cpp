@@ -3,30 +3,44 @@
 
 #include "raymath.h"
 
+#include <unordered_map>
 #include <iostream>
 
-std::map<SnapBlock*,bool> dropFail;
 std::set<SnapBlock*> deleteRequests;
 
+std::unordered_map<SnapBlock*,Vector2> clicpos;
 SnapBlock* setDraggedBlock = nullptr;
 SnapBlock* draggedBlock = nullptr;
+SnapBlock::Container* draggedBlockPreviousOwner = nullptr;
+SnapBlock* droppedBlock = nullptr;
+
+Vector2 dragWindowOffset;
+Vector2 dragWindowSize;
 
 void SnapBlock::Prepare() {
-    for(auto& sb : dropFail) {
-        sb.first->WhenDropFailed();
-        if (deleteRequests.find(sb.first) == deleteRequests.end()) {
-            sb.first->pos = sb.first->clicpos;
-            //restore previous connexion
-            if (sb.second) {
-                Vector2 droploc;
-                SnapBlock* snapto = sb.first->GetSnapDrop(droploc,*sb.first->owner);
-                if (snapto) {
-                    sb.first->SnapWith(*snapto,droploc);
-                }
-            }            
+    // dropped block at the begining of the frame means nothing accepted it, it's a failed drop
+    if (droppedBlock) {
+        for(auto& sb : SnapBlock::Set(*droppedBlock->cluster)) {
+            sb->WhenDropFailed();
+            if (deleteRequests.find(sb) == deleteRequests.end()) {
+                // restore state when clicked
+                if (draggedBlockPreviousOwner) draggedBlockPreviousOwner->Add(sb);
+                sb->pos = clicpos[sb] - sb->GetOrigin();
+                //restore previous connexion
+                if (sb == droppedBlock) {
+                    Vector2 droploc;
+                    SnapBlock* snapto = sb->GetSnapDrop(droploc,*sb->owner);
+                    if (snapto) {
+                        sb->SnapWith(*snapto,droploc);
+                    }
+                }            
+            }
         }
+        droppedBlock = nullptr;
+        draggedBlockPreviousOwner = nullptr;
+        clicpos.clear();
     }
-    dropFail.clear();
+
     for(auto& dr : deleteRequests) {
         if (dr->owner) {
             dr->owner->collec.erase(dr);
@@ -35,28 +49,58 @@ void SnapBlock::Prepare() {
     }
     deleteRequests.clear();
 
-    if (setDraggedBlock) {
+    if (setDraggedBlock && !draggedBlock) {
+        clicpos.clear();
         draggedBlock = setDraggedBlock;
-        // if (draggedBlock->owner) {
-        //     draggedBlock->pos += draggedBlock->owner->windowpos;
-        //     draggedBlock->owner->collec.erase(draggedBlock);
-        //     draggedBlock->owner = nullptr;
-        // }
+        draggedBlockPreviousOwner = draggedBlock->owner;
         draggedBlock->WhenDragStarts();
+        Vector2 min{std::numeric_limits<float>::max(), std::numeric_limits<float>::max()};
+        Vector2 max{std::numeric_limits<float>::min(), std::numeric_limits<float>::min()};
         for (auto& sb : *draggedBlock->cluster) {
-            sb->clicpos = sb->pos;
+            if (sb->owner) {
+                sb->pos += sb->owner->windowpos;
+                sb->owner->collec.erase(sb);
+                sb->owner = nullptr;                
+            }
+            clicpos[sb] = sb->pos;
+            const Vector2 tl = sb->pos;
+            const Vector2 br = sb->pos + sb->size;
+            if (tl.x < min.x) min.x = tl.x;
+            if (tl.y < min.y) min.y = tl.y;
+            if (br.x > max.x) max.x = br.x;
+            if (br.y > max.y) max.y = br.y;
         }
+        dragWindowOffset = min - draggedBlock->pos;
+        dragWindowSize = max - min;
         setDraggedBlock = nullptr;
     }
 
-    // if (draggedBlock) {
-    //     ImGui::SetNextWindowPos(draggedBlock->pos);
-    //     ImGui::SetNextWindowSize(draggedBlock->size);
-    //     ImGui::SetNextWindowFocus();
-    //     ImGui::Begin("DraggedSnapBlock",nullptr,ImGuiWindowFlags_NoDecoration);
-    //     draggedBlock->Update();
-    //     ImGui::End();
-    // }
+    if (draggedBlock) {
+        ImGui::SetNextWindowPos(draggedBlock->pos + dragWindowOffset);
+        ImGui::SetNextWindowSize(dragWindowSize);
+        ImGui::SetNextWindowFocus();
+        if (ImGui::Begin("##DraggedSnapBlock",nullptr,
+            ImGuiWindowFlags_NoDecoration |
+            ImGuiWindowFlags_NoBackground |
+            ImGuiWindowFlags_NoInputs |
+            ImGuiWindowFlags_NoSavedSettings)) {
+
+            for (auto& sb : *draggedBlock->cluster) {
+                sb->pos = clicpos[sb] + ImGui::GetMouseDragDelta();
+                sb->Update();
+            }
+
+            // Vector2 min = draggedBlock->pos + dragWindowOffset + Vector2{1,1};
+            // ImGui::GetWindowDrawList()->AddRect(min, min+ dragWindowSize - Vector2{2,2}, toImGuiCol(YELLOW));
+
+            if(ImGui::IsMouseReleased(0)) {
+                droppedBlock = draggedBlock;
+                draggedBlock = nullptr;
+            }
+
+            ImGui::End();
+        }
+    }
 
 }
 
@@ -78,7 +122,6 @@ void SnapBlock::Container::Update()
     windowsize = ImGui::GetWindowSize();
 
     for(SnapBlock* sb : collec) {
-        //if (sb != draggedBlock)
             sb->Update();
     }
 
@@ -92,13 +135,10 @@ void SnapBlock::Container::Update()
     ImGui::Dummy(ImGui::GetWindowSize());
     ImGui::SetCursorScreenPos(savecursorpos);
 
-    if (type && ImGui::BeginDragDropTarget()) {
-        const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(type);
-        SnapBlock* dropped = payload ? *(SnapBlock**)payload->Data : nullptr;
-
+    if (type && (draggedBlock || droppedBlock) && ImGui::IsWindowHovered()) {
         Vector2 droploc;
         SnapBlock* snapto = nullptr;
-        SnapBlock* snaptryer = draggedBlock ? draggedBlock : dropped;
+        SnapBlock* snaptryer = draggedBlock ? draggedBlock : droppedBlock;
 
         if (snaptryer) {
             snapto = snaptryer->GetSnapDrop(droploc,*this);
@@ -106,21 +146,20 @@ void SnapBlock::Container::Update()
                 snaptryer->DrawShadow(ImGui::GetWindowDrawList(), windowpos + droploc);
             }
         }
-        if (dropped) {
-            if (collec.find(dropped) == collec.end()) {
+        if (droppedBlock) {
+            if (collec.find(droppedBlock) == collec.end()) {
                 draggedBlock = nullptr;
-                Vector2 tr = (dropped->owner ? dropped->owner->windowpos : Vector2{0.0f,0.0f}) - windowpos;
-                for(auto& r : *dropped->cluster) {
-                    dropFail.erase(r);
+                Vector2 tr = droppedBlock->GetOrigin() - windowpos;
+                for(auto& r : *droppedBlock->cluster) {
                     r->pos += tr;
                     Add(r);
                 }
             }
             if (snapto) {
-                dropped->SnapWith(*snapto,droploc);
+                droppedBlock->SnapWith(*snapto,droploc);
             }
+            droppedBlock = nullptr;
         }
-        ImGui::EndDragDropTarget();
     }
 
     ImGui::PopID();
@@ -141,7 +180,6 @@ SnapBlock::SnapBlock(Vector2 startpos, const char* containerType)
     , owner(nullptr)
     , cluster(new Set)
     , pos(startpos)
-    , clicpos(0.0f, 0.0f)
     , size(60.0f, 60.0f)
 {
     cluster->emplace(this);
@@ -150,13 +188,7 @@ SnapBlock::SnapBlock(Vector2 startpos, const char* containerType)
 SnapBlock::~SnapBlock() {}
 
 void SnapBlock::Update() {
-    // if (lastloopid == loopcounter) return;
-    // lastloopid = loopcounter;
-
-    //if (!owner) return;
-    Vector2 orig = GetOrigin();
-
-    Draw(ImGui::GetWindowDrawList(), orig + pos);
+    const Vector2 orig = GetOrigin();
     
     Vector2 savescreenpos = ImGui::GetCursorScreenPos();
     ImGui::SetCursorScreenPos(orig + pos);
@@ -165,30 +197,10 @@ void SnapBlock::Update() {
 
     ImGui::InvisibleButton("Effing Rect", size);
 
+    DrawLining(ImGui::GetWindowDrawList(), orig + pos);
+
     if (ImGui::IsItemClicked()) {
         setDraggedBlock = this;
-    }
-
-    bool dragging = (draggedBlock == this) && ImGui::IsItemActive();
-
-    if (dragging && ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceNoPreviewTooltip)) {
-        SnapBlock* ptrvalue = this;
-        ImGui::SetDragDropPayload(containerType, &ptrvalue, sizeof(SnapBlock*));
-        ImGui::EndDragDropSource();
-    }
-
-    if (dragging) {
-        for (auto& sb : *cluster) {
-            sb->pos = sb->clicpos + ImGui::GetMouseDragDelta();
-        }
-    }
-    else if (draggedBlock == this) {
-        draggedBlock = nullptr;
-        if (!ImGui::IsWindowHovered() || !owner->type) {
-            for (auto& sb: *cluster) {
-                dropFail[sb] = (sb == this);
-            }
-        }
     }
 
     Widget();
@@ -205,7 +217,7 @@ SnapBlock* SnapBlock::GetSnapDrop(Vector2& o_droploc, Container& cont) {
     OrderedSet orderedset(cont.collec.begin(), cont.collec.end());
     for(auto& otherblock : orderedset) {
         if (otherblock != this && cluster != otherblock->cluster) {
-            o_droploc = pos + owner->windowpos - cont.windowpos;
+            o_droploc = pos + GetOrigin() - cont.windowpos;
             if (otherblock->CanSnap(o_droploc,this)) {
                 return otherblock;
             }
@@ -238,7 +250,7 @@ void SnapBlock::MergeClusters(SnapBlock &other)
 void SnapBlock::Widget() {
 }
 
-void SnapBlock::Draw(ImDrawList *drawList, const Vector2 &pos)
+void SnapBlock::DrawLining(ImDrawList *drawList, const Vector2 &pos)
 {
     drawList->AddRectFilled(pos, pos+size, toImGuiCol(ImGui::IsItemHovered() ? LIGHTGRAY : GRAY));
 }

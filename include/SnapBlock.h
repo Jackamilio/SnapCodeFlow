@@ -33,7 +33,6 @@ struct SnapBlock {
     Set* cluster;
 
     Vector2 pos;
-    Vector2 clicpos;
     Vector2 size;
 
     static void Prepare();
@@ -48,7 +47,7 @@ struct SnapBlock {
     void SnapWith(SnapBlock& other, const Vector2& at);
 
     virtual void Widget();
-    virtual void Draw(ImDrawList *drawList, const Vector2& pos);
+    virtual void DrawLining(ImDrawList *drawList, const Vector2& pos);
     virtual void DrawShadow(ImDrawList *drawList, const Vector2& pos);
     virtual bool CanSnap(Vector2& io_at, const SnapBlock* from) const;
 
