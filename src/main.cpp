@@ -95,13 +95,13 @@ struct TestInstructions : Main {
     //     c1.Add(new InstructionBlockDebug({(float)GetRandomValue(10,210),(float)GetRandomValue(10,210)}));
     // }
 
-    TestInstructions() {
+    TestInstructions() : models(nullptr) {
         SnapBlocDesc::Load();
 
         const SnapBlocDesc::List* tm = SnapBlocDesc::GetListFromTag("test");
 
         if (!tm) return;
-        Vector2 mpos{10,10};
+        Vector2 mpos{10,50};
         for(const auto& sbd : *tm) {
             InstructionBlock* ib = new InstructionBlock(*sbd, mpos);
             ib->anchor = new Vector2(mpos);

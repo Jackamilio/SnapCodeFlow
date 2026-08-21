@@ -13,16 +13,18 @@ SnapBlock* draggedBlock = nullptr;
 
 void SnapBlock::Prepare() {
     for(auto& sb : dropFail) {
-        sb.first->pos = sb.first->clicpos;
-        //restore previous connexion
-        if (sb.second) {
-            Vector2 droploc;
-            SnapBlock* snapto = sb.first->GetSnapDrop(droploc,*sb.first->owner);
-            if (snapto) {
-                sb.first->SnapWith(*snapto,droploc);
-            }
-        }
         sb.first->WhenDropFailed();
+        if (deleteRequests.find(sb.first) == deleteRequests.end()) {
+            sb.first->pos = sb.first->clicpos;
+            //restore previous connexion
+            if (sb.second) {
+                Vector2 droploc;
+                SnapBlock* snapto = sb.first->GetSnapDrop(droploc,*sb.first->owner);
+                if (snapto) {
+                    sb.first->SnapWith(*snapto,droploc);
+                }
+            }            
+        }
     }
     dropFail.clear();
     for(auto& dr : deleteRequests) {
@@ -35,13 +37,32 @@ void SnapBlock::Prepare() {
 
     if (setDraggedBlock) {
         draggedBlock = setDraggedBlock;
+        // if (draggedBlock->owner) {
+        //     draggedBlock->pos += draggedBlock->owner->windowpos;
+        //     draggedBlock->owner->collec.erase(draggedBlock);
+        //     draggedBlock->owner = nullptr;
+        // }
+        draggedBlock->WhenDragStarts();
+        for (auto& sb : *draggedBlock->cluster) {
+            sb->clicpos = sb->pos;
+        }
         setDraggedBlock = nullptr;
     }
+
+    // if (draggedBlock) {
+    //     ImGui::SetNextWindowPos(draggedBlock->pos);
+    //     ImGui::SetNextWindowSize(draggedBlock->size);
+    //     ImGui::SetNextWindowFocus();
+    //     ImGui::Begin("DraggedSnapBlock",nullptr,ImGuiWindowFlags_NoDecoration);
+    //     draggedBlock->Update();
+    //     ImGui::End();
+    // }
+
 }
 
 std::set<SnapBlock::Container*> allcontainers;
 
-SnapBlock::Container::Container() {
+SnapBlock::Container::Container(const char* type) : type(type) {
     allcontainers.emplace(this);
 }
 
@@ -57,21 +78,22 @@ void SnapBlock::Container::Update()
     windowsize = ImGui::GetWindowSize();
 
     for(SnapBlock* sb : collec) {
-        sb->Update();
+        //if (sb != draggedBlock)
+            sb->Update();
     }
 
-    for(auto it = collec.rbegin(); it != collec.rend(); ++it) {
-        auto& sb = *it;
-        ImDrawList *drawList = (sb->cluster->find(draggedBlock) != sb->cluster->end()) ? ImGui::GetForegroundDrawList() : ImGui::GetWindowDrawList();
-        sb->Draw(drawList, windowpos + sb->pos);
-    }
+    // for(auto it = collec.rbegin(); it != collec.rend(); ++it) {
+    //     auto& sb = *it;
+    //     ImDrawList *drawList = (sb->cluster->find(draggedBlock) != sb->cluster->end()) ? ImGui::GetForegroundDrawList() : ImGui::GetWindowDrawList();
+    //     sb->Draw(drawList, windowpos + sb->pos);
+    // }
 
     ImGui::PushID(this);
     ImGui::Dummy(ImGui::GetWindowSize());
     ImGui::SetCursorScreenPos(savecursorpos);
 
-    if (ImGui::BeginDragDropTarget()) {
-        const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("Efrect");
+    if (type && ImGui::BeginDragDropTarget()) {
+        const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(type);
         SnapBlock* dropped = payload ? *(SnapBlock**)payload->Data : nullptr;
 
         Vector2 droploc;
@@ -114,8 +136,13 @@ void SnapBlock::Container::Add(SnapBlock* r) {
     }
 }
 
-SnapBlock::SnapBlock(Vector2 startpos)
-    : owner(nullptr), cluster(new Set), pos(startpos), clicpos({0.0f, 0.0f}), size(60.0f, 60.0f)
+SnapBlock::SnapBlock(Vector2 startpos, const char* containerType)
+    : containerType(containerType)
+    , owner(nullptr)
+    , cluster(new Set)
+    , pos(startpos)
+    , clicpos(0.0f, 0.0f)
+    , size(60.0f, 60.0f)
 {
     cluster->emplace(this);
 }
@@ -126,29 +153,29 @@ void SnapBlock::Update() {
     // if (lastloopid == loopcounter) return;
     // lastloopid = loopcounter;
 
-    if (!owner) return;
+    //if (!owner) return;
+    Vector2 orig = GetOrigin();
+
+    Draw(ImGui::GetWindowDrawList(), orig + pos);
     
     Vector2 savescreenpos = ImGui::GetCursorScreenPos();
+    ImGui::SetCursorScreenPos(orig + pos);
 
     ImGui::PushID(this);
 
-    ImGui::SetCursorScreenPos(owner->windowpos + pos);
     ImGui::InvisibleButton("Effing Rect", size);
-
-    if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceNoPreviewTooltip)) {
-        SnapBlock* ptrvalue = this;
-        ImGui::SetDragDropPayload("Efrect", &ptrvalue, sizeof(SnapBlock*));
-        ImGui::EndDragDropSource();
-    }
 
     if (ImGui::IsItemClicked()) {
         setDraggedBlock = this;
-        WhenDragStarts();
-        for (auto& sb : *cluster) {
-            sb->clicpos = sb->pos;
-        }
     }
+
     bool dragging = (draggedBlock == this) && ImGui::IsItemActive();
+
+    if (dragging && ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceNoPreviewTooltip)) {
+        SnapBlock* ptrvalue = this;
+        ImGui::SetDragDropPayload(containerType, &ptrvalue, sizeof(SnapBlock*));
+        ImGui::EndDragDropSource();
+    }
 
     if (dragging) {
         for (auto& sb : *cluster) {
@@ -157,15 +184,21 @@ void SnapBlock::Update() {
     }
     else if (draggedBlock == this) {
         draggedBlock = nullptr;
-        if (!ImGui::IsWindowHovered()) {
+        if (!ImGui::IsWindowHovered() || !owner->type) {
             for (auto& sb: *cluster) {
                 dropFail[sb] = (sb == this);
             }
         }
     }
 
-    ImGui::SetCursorScreenPos(savescreenpos);
+    Widget();
+
     ImGui::PopID();
+    ImGui::SetCursorScreenPos(savescreenpos);
+}
+
+Vector2 SnapBlock::GetOrigin() const {
+    return owner ? owner->windowpos : Vector2{0.f,0.f};
 }
 
 SnapBlock* SnapBlock::GetSnapDrop(Vector2& o_droploc, Container& cont) {
@@ -202,7 +235,10 @@ void SnapBlock::MergeClusters(SnapBlock &other)
     delete old;
 }
 
-void SnapBlock::Draw(ImDrawList *drawList, const Vector2& pos)
+void SnapBlock::Widget() {
+}
+
+void SnapBlock::Draw(ImDrawList *drawList, const Vector2 &pos)
 {
     drawList->AddRectFilled(pos, pos+size, toImGuiCol(ImGui::IsItemHovered() ? LIGHTGRAY : GRAY));
 }

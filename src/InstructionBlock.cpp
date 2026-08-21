@@ -14,10 +14,15 @@ InstructionBlock::InstructionBlock(const SnapBlocDesc& description, Vector2 star
     size.y = 30.0f;
 }
 
-void InstructionBlock::Draw(ImDrawList *drawList, const Vector2& pos) {
-    SnapBlock::Draw(drawList,pos);
-    drawList->AddText(pos, toImGuiCol(BLACK), desc.name.c_str());
+void InstructionBlock::Widget() {
+    ImGui::SetCursorScreenPos(GetOrigin() + pos);
+    ImGui::LabelText("##invisible", desc.name.c_str());
 }
+
+// void InstructionBlock::Draw(ImDrawList *drawList, const Vector2 &pos) {
+//     SnapBlock::Draw(drawList,pos);
+//     drawList->AddText(pos, toImGuiCol(BLACK), desc.name.c_str());
+// }
 
 float InstructionBlock::GetClusterHeight() const {
     float clusterheight = 0.0f;
