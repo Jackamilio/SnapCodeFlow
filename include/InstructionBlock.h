@@ -30,4 +30,7 @@ struct InstructionBlock : SnapBlock
     void WhenDropFailed() override;
 
     void Unsnap() override;
+
+protected:
+    ~InstructionBlock() override = default;
 };

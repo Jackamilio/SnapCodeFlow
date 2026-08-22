@@ -111,21 +111,22 @@ struct TestInstructions : Main {
     }
 
     ~TestInstructions() {
-        for(auto& sb : models.collec) {
+        for(auto& sb : models) {
             InstructionBlock* ib = dynamic_cast<InstructionBlock*>(sb);
             if (ib) {
                 delete ib->anchor;
-                delete ib;
             }
+            sb->RequestDeletion();
         }
-
+        
+        SnapBlock::Clean();
         SnapBlocDesc::Unload();
     }
 
     static void TrackInstructionBlockClusters(const SnapBlock::Container& container) {
-        std::unordered_set<SnapBlock::Set*> clusters;
+        std::unordered_set<SnapBlock::Cluster*> clusters;
 
-        for (auto& b : container.collec) {
+        for (auto& b : container) {
             if (clusters.find(b->cluster)==clusters.end()) {
                 clusters.emplace(b->cluster);
 
@@ -155,11 +156,6 @@ struct TestInstructions : Main {
 
         c2.Update();
         ImGui::Text("Bonjour");
-        ImGui::LabelText("C1 size", "%lld", c1.collec.size());
-        ImGui::LabelText("C2 size", "%lld", c2.collec.size());
-        // if (ImGui::Button("Spawn new block")) {
-        //     NewRandomBlock();
-        // }
 
         ImGui::End();
 
@@ -184,10 +180,10 @@ struct TestPuzzle : Main {
         if (t.id == 0) return false;
 
         if (puzzle.image.id != 0) UnloadTexture(puzzle.image);
-        for(auto& pp: board.collec) {
-            delete pp;
+        for(auto& pp: board) {
+            pp->RequestDeletion();
         }
-        board.collec.clear();
+        SnapBlock::Clean();
 
         puzzle.image = t;
         puzzle.columns = columns;

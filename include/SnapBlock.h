@@ -1,11 +1,14 @@
 #pragma once
 #include "imgui_ext.h"
 #include <raymath.h>
-#include<unordered_set>
+#include <unordered_set>
 #include <set>
 #include <span>
 #include <map>
 
+// IMPORTANT:
+// Derived SnapBlocks must keep their destructor protected.
+// SnapBlocks are owned/destroyed by its static managing functions.
 struct SnapBlock {
     struct CompareY {
         bool operator()(const SnapBlock* a, const SnapBlock*b) const {
@@ -15,9 +18,14 @@ struct SnapBlock {
     typedef std::set<SnapBlock*> Set;
     typedef std::set<SnapBlock*,CompareY> OrderedSet;
 
+    struct Container;
+    struct Cluster : public Set {
+        Container* owner = nullptr;
+    };
+
     struct Container {
         const char* type;
-        Set collec;
+
         Vector2 windowpos;
         Vector2 windowsize;
 
@@ -25,20 +33,50 @@ struct SnapBlock {
         ~Container();
 
         void Update();
-        void Add(SnapBlock* r);
+        void Add(SnapBlock* sb);
+        void Add(Cluster* cl);
+        void Erase(SnapBlock* sb);
+        void Erase(Cluster* cl);
+
+        OrderedSet GetAllOrdered() const;
+
+        struct Iterator {
+            Iterator(std::set<Cluster*>::iterator it, std::set<Cluster*>::iterator it_end);
+            Iterator& operator++();
+
+            inline bool operator==(const Iterator& other) {return cit == other.cit && (cit == cit_end || sbit == other.sbit);}
+            inline bool operator!=(const Iterator& other) { return !(*this == other); }
+            inline SnapBlock* const& operator*() {return *sbit;}
+
+            private:
+            void SkipEmptyClusters();
+
+            std::set<Cluster*>::iterator cit;
+            std::set<Cluster*>::iterator cit_end;
+            Set::iterator sbit;
+        };
+
+        inline Iterator begin() const {return Iterator(clusters.begin(), clusters.end());}
+        inline Iterator end() const {return Iterator(clusters.end(), clusters.end());}
+
+        private:
+        std::set<Cluster*> clusters;
     };
 
     const char* containerType;
-    Container* owner;
-    Set* cluster;
+
+    Cluster* cluster;
 
     Vector2 pos;
     Vector2 size;
 
-    static void Prepare();
+    static void Prepare(); // call once at the beginning of every frame
+    static void Clean(); // deletes every block that requested it. Call it outside any iterating snapblock loop. Called by Prepare(). Useful for exiting the program cleanly.
 
     SnapBlock(Vector2 startpos = Vector2{0.0f,0.0f}, const char* containerType = "default");
+protected:
     virtual ~SnapBlock();
+public:
     void Update();
 
     Vector2 GetOrigin() const;

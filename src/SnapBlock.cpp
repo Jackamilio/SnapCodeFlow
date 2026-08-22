@@ -20,16 +20,16 @@ Vector2 dragWindowSize;
 void SnapBlock::Prepare() {
     // dropped block at the begining of the frame means nothing accepted it, it's a failed drop
     if (droppedBlock) {
-        for(auto& sb : SnapBlock::Set(*droppedBlock->cluster)) {
+        // restore state when clicked
+        if (draggedBlockPreviousOwner) draggedBlockPreviousOwner->Add(droppedBlock->cluster);
+        for(auto& sb : SnapBlock::Cluster(*droppedBlock->cluster)) {
             sb->WhenDropFailed();
             if (deleteRequests.find(sb) == deleteRequests.end()) {
-                // restore state when clicked
-                if (draggedBlockPreviousOwner) draggedBlockPreviousOwner->Add(sb);
                 sb->pos = clicpos[sb] - sb->GetOrigin();
                 //restore previous connexion
                 if (sb == droppedBlock) {
                     Vector2 droploc;
-                    SnapBlock* snapto = sb->GetSnapDrop(droploc,*sb->owner);
+                    SnapBlock* snapto = sb->GetSnapDrop(droploc,*sb->cluster->owner);
                     if (snapto) {
                         sb->SnapWith(*snapto,droploc);
                     }
@@ -41,27 +41,20 @@ void SnapBlock::Prepare() {
         clicpos.clear();
     }
 
-    for(auto& dr : deleteRequests) {
-        if (dr->owner) {
-            dr->owner->collec.erase(dr);
-        }
-        delete dr;
-    }
-    deleteRequests.clear();
+    Clean();
 
     if (setDraggedBlock && !draggedBlock) {
         clicpos.clear();
         draggedBlock = setDraggedBlock;
-        draggedBlockPreviousOwner = draggedBlock->owner;
+        draggedBlockPreviousOwner = draggedBlock->cluster->owner;
         draggedBlock->WhenDragStarts();
         Vector2 min{std::numeric_limits<float>::max(), std::numeric_limits<float>::max()};
         Vector2 max{std::numeric_limits<float>::min(), std::numeric_limits<float>::min()};
+        Vector2 offset = draggedBlock->GetOrigin();
+        SnapBlock::Container* dbowner = draggedBlock->cluster->owner;
+        if (dbowner) dbowner->Erase(draggedBlock->cluster);
         for (auto& sb : *draggedBlock->cluster) {
-            if (sb->owner) {
-                sb->pos += sb->owner->windowpos;
-                sb->owner->collec.erase(sb);
-                sb->owner = nullptr;                
-            }
+            sb->pos += offset;
             clicpos[sb] = sb->pos;
             const Vector2 tl = sb->pos;
             const Vector2 br = sb->pos + sb->size;
@@ -104,6 +97,13 @@ void SnapBlock::Prepare() {
 
 }
 
+void SnapBlock::Clean() {
+    for(auto& dr : deleteRequests) {
+        delete dr;
+    }
+    deleteRequests.clear();
+}
+
 std::set<SnapBlock::Container*> allcontainers;
 
 SnapBlock::Container::Container(const char* type) : type(type) {
@@ -121,15 +121,9 @@ void SnapBlock::Container::Update()
     windowpos = ImGui::GetCursorScreenPos();
     windowsize = ImGui::GetWindowSize();
 
-    for(SnapBlock* sb : collec) {
+    for(auto& sb : *this) {
             sb->Update();
     }
-
-    // for(auto it = collec.rbegin(); it != collec.rend(); ++it) {
-    //     auto& sb = *it;
-    //     ImDrawList *drawList = (sb->cluster->find(draggedBlock) != sb->cluster->end()) ? ImGui::GetForegroundDrawList() : ImGui::GetWindowDrawList();
-    //     sb->Draw(drawList, windowpos + sb->pos);
-    // }
 
     ImGui::PushID(this);
     ImGui::Dummy(ImGui::GetWindowSize());
@@ -147,12 +141,11 @@ void SnapBlock::Container::Update()
             }
         }
         if (droppedBlock) {
-            if (collec.find(droppedBlock) == collec.end()) {
-                draggedBlock = nullptr;
+            if (clusters.find(droppedBlock->cluster) == clusters.end()) {
                 Vector2 tr = droppedBlock->GetOrigin() - windowpos;
+                Add(droppedBlock->cluster);
                 for(auto& r : *droppedBlock->cluster) {
                     r->pos += tr;
-                    Add(r);
                 }
             }
             if (snapto) {
@@ -165,27 +158,68 @@ void SnapBlock::Container::Update()
     ImGui::PopID();
 }
 
-void SnapBlock::Container::Add(SnapBlock* r) {
-    if (r->owner != this && collec.find(r) == collec.end()) {
-        if (r->owner) {
-            r->owner->collec.erase(r);
+void SnapBlock::Container::Add(SnapBlock* sb) {
+    if (sb->cluster->owner != this && clusters.find(sb->cluster) == clusters.end()) {
+        if (sb->cluster->owner) {
+            sb->cluster->owner->Erase(sb);
         }
-        r->owner = this;
-        collec.emplace(r);
+        sb->cluster->owner = this;
+        clusters.emplace(sb->cluster);
     }
+}
+
+void SnapBlock::Container::Add(Cluster *cl) {
+    if (cl->owner != this) {
+        if (cl->owner) cl->owner->clusters.erase(cl);
+        cl->owner = this;
+        clusters.emplace(cl);
+    }
+}
+
+void SnapBlock::Container::Erase(SnapBlock *sb) {
+    if (sb->cluster->size() > 1) {
+        sb->cluster->erase(sb);
+        sb->cluster = new Cluster;
+        sb->cluster->emplace(sb);
+    } else {
+        clusters.erase(sb->cluster);
+    }
+}
+
+void SnapBlock::Container::Erase(Cluster *cl) {
+    clusters.erase(cl);
+    cl->owner = nullptr;
+}
+
+SnapBlock::OrderedSet SnapBlock::Container::GetAllOrdered() const
+{
+    OrderedSet ret;
+    for(auto& cl : clusters) {
+        for(auto& sb : *cl) {
+            ret.emplace(sb);
+        }
+    }
+    return ret;
 }
 
 SnapBlock::SnapBlock(Vector2 startpos, const char* containerType)
     : containerType(containerType)
-    , owner(nullptr)
-    , cluster(new Set)
+    , cluster(new Cluster)
     , pos(startpos)
     , size(60.0f, 60.0f)
 {
     cluster->emplace(this);
 }
 
-SnapBlock::~SnapBlock() {}
+SnapBlock::~SnapBlock() {
+    cluster->erase(this);
+    if (cluster->empty()) {
+        if (cluster->owner) {
+            cluster->owner->Erase(cluster);
+        }
+        delete cluster;
+    }
+}
 
 void SnapBlock::Update() {
     const Vector2 orig = GetOrigin();
@@ -195,7 +229,7 @@ void SnapBlock::Update() {
 
     ImGui::PushID(this);
 
-    ImGui::InvisibleButton("Effing Rect", size);
+    ImGui::InvisibleButton("##snapblock", size);
 
     DrawLining(ImGui::GetWindowDrawList(), orig + pos);
 
@@ -210,12 +244,11 @@ void SnapBlock::Update() {
 }
 
 Vector2 SnapBlock::GetOrigin() const {
-    return owner ? owner->windowpos : Vector2{0.f,0.f};
+    return cluster->owner ? cluster->owner->windowpos : Vector2{0.f,0.f};
 }
 
 SnapBlock* SnapBlock::GetSnapDrop(Vector2& o_droploc, Container& cont) {
-    OrderedSet orderedset(cont.collec.begin(), cont.collec.end());
-    for(auto& otherblock : orderedset) {
+    for(auto& otherblock : cont.GetAllOrdered()) {
         if (otherblock != this && cluster != otherblock->cluster) {
             o_droploc = pos + GetOrigin() - cont.windowpos;
             if (otherblock->CanSnap(o_droploc,this)) {
@@ -238,12 +271,12 @@ void SnapBlock::SnapWith(SnapBlock &other, const Vector2 &at)
 
 void SnapBlock::MergeClusters(SnapBlock &other)
 {
-    Set* old = cluster;
+    Cluster* old = cluster;
     for (auto& sb : *old) {
         sb->cluster = other.cluster;
     }
-    //other.cluster->insert(old->begin(), old->end());
     other.cluster->merge(*old);
+    if (old->owner) old->owner->Erase(old);
     delete old;
 }
 
@@ -292,7 +325,6 @@ bool SnapBlock::CanSnap(Vector2 &io_at, const SnapBlock* from) const
 {
     Vector2 validpoints[] = {{0,-size.y},{size.x,0},{0,size.y},{-size.x,0}};
 
-    // return CheckSnapLocationsToSelf(validpoints, io_at);
     for(auto& sb : *from->cluster) {
         Vector2 shift = sb->pos - from->pos;
         Vector2 io_atbis = io_at + shift;
@@ -324,9 +356,13 @@ void SnapBlock::WhenSnapped(SnapBlock& other)
 void SnapBlock::Unsnap()
 {
     if (cluster->size() > 1) {
+        Container* owner = cluster->owner;
         cluster->erase(this);
-        cluster = new Set;
+        cluster = new Cluster();
         cluster->emplace(this);
+        if (owner) {
+            owner->Add(cluster);
+        }
     }
 }
 
@@ -347,4 +383,29 @@ bool SnapBlock::CheckSnapLocationsToSelf(const std::span<Vector2>& locations, Ve
     }
 
     return false;
+}
+
+SnapBlock::Container::Iterator::Iterator(std::set<Cluster *>::iterator it, std::set<Cluster *>::iterator it_end)
+    : cit(it)
+    , cit_end(it_end)
+{
+    if (it != it_end)
+        sbit = (*cit)->begin();
+
+    SkipEmptyClusters();
+}
+
+SnapBlock::Container::Iterator &SnapBlock::Container::Iterator::operator++()
+{
+    ++sbit;
+    SkipEmptyClusters();
+    return *this;
+}
+
+void SnapBlock::Container::Iterator::SkipEmptyClusters() {
+    while (cit != cit_end && sbit == (*cit)->end()) {
+        ++cit;
+        if (cit != cit_end)
+            sbit = (*cit)->begin();
+    }
 }

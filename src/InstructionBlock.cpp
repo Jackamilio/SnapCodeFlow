@@ -66,13 +66,13 @@ InstructionBlock* InstructionBlock::GetLastSibling() {
 }
 
 void InstructionBlock::WhenDragStarts() {
-    if (anchor && owner) {
+    if (anchor && cluster->owner) {
         InstructionBlock* duplicate = new InstructionBlock(desc);
         duplicate->pos = *anchor;
         duplicate->anchor = anchor;
         duplicate->size = size;
         anchor = nullptr;
-        owner->Add(duplicate);
+        cluster->owner->Add(duplicate);
     }
     Unsnap();
 }
@@ -141,7 +141,8 @@ void InstructionBlock::Unsnap() {
             topsibling = nullptr;
         }
 
-        Set* nc = new Set;
+        Cluster* nc = new Cluster;
+        nc->owner = cluster->owner;
         InstructionBlock* current = this;
         while (current) {
             current->cluster->erase(current);
