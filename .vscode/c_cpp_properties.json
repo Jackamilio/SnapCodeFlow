@@ -1,7 +1,7 @@
 {
     "configurations": [
         {
-            "name": "Win64",
+            "name": "Windows UCRT64",
             "compilerPath": "C:/msys64/ucrt64/bin/g++.exe",
 
             "intelliSenseMode": "windows-gcc-x64",
@@ -20,6 +20,21 @@
             "defines": [
                 "PLATFORM_DESKTOP",
                 "GRAPHICS_API_OPENGL_33"
+            ]
+        },
+        {
+            "name": "Linux GCC",
+            "compilerPath": "/usr/bin/g++",
+            "cStandard": "c17",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "linux-gcc-x64",
+            "includePath": [
+                "${workspaceFolder}/src/**",
+                "${workspaceFolder}/include/**",
+                "${workspaceFolder}/external/imgui",
+                "${workspaceFolder}/external/rlImGui",
+                "/usr/local/include",
+                "/usr/include/luajit-2.1"
             ]
         }
     ],

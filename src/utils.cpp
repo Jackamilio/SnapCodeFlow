@@ -1,10 +1,12 @@
-#include <windows.h>
-#include <commdlg.h>
 #include <string>
 
+#ifdef _WIN32
+
+#include <windows.h>
+#include <commdlg.h>
+
 // needs -lcomdlg32
-std::string OpenFileDialog()
-{
+std::string OpenFileDialog() {
     char path[MAX_PATH] = {};
 
     OPENFILENAMEA ofn{};
@@ -31,3 +33,11 @@ std::string OpenFileDialog()
 
     return {};
 }
+
+#elif defined(__linux__)
+
+std::string OpenFileDialog() {
+    return "";
+}
+
+#endif

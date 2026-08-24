@@ -4,7 +4,8 @@
         {
             "label": "Build",
             "type": "shell",
-            "command": "mingw32-make",
+            "command": "make",
+            "args": [],
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -16,7 +17,9 @@
         {
             "label": "Clean",
             "type": "shell",
-            "command": "mingw32-make clean",
+            "command": "make",
+            "args": ["clean"],
+            "problemMatcher": []
         }
     ]
 }

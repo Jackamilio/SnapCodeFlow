@@ -16,7 +16,7 @@
 #include "InstructionBlock.h"
 #include "SnapBlockDesc.h"
 
-#include "Utils.h"
+#include "utils.h"
 #include "bindings.h"
 #include <lua.hpp>
 

@@ -1,10 +1,22 @@
 CXX = g++
 
-LUAJIT_INCLUDE = C:/msys64/ucrt64/include/luajit-2.1
-
 rwildcard = \
     $(foreach d,$(wildcard $1/*),$(call rwildcard,$d,$2)) \
     $(filter $(subst *,%,$2),$(wildcard $1/$2))
+
+# --------------------------------------------------
+# Détection de l'OS
+# --------------------------------------------------
+
+ifeq ($(OS),Windows_NT)
+    PLATFORM = WINDOWS
+else
+    PLATFORM = LINUX
+endif
+
+# --------------------------------------------------
+# Flags communs
+# --------------------------------------------------
 
 CXXFLAGS = \
 	-std=c++20 \
@@ -15,16 +27,7 @@ CXXFLAGS = \
 	-MP \
 	-Iinclude \
 	-Iexternal/imgui \
-	-Iexternal/rlImGui \
-	-I$(LUAJIT_INCLUDE)
-
-LDFLAGS = \
-	-lraylib \
-	-lopengl32 \
-	-lgdi32 \
-	-lwinmm \
-	-lcomdlg32 \
-	-lluajit-5.1
+	-Iexternal/rlImGui
 
 SRC = \
 	$(call rwildcard,src,*.cpp) \
@@ -36,29 +39,73 @@ SRC = \
 	external/rlImGui/rlImGui.cpp
 
 OBJ = $(SRC:%.cpp=build/obj/%.o)
-
 DEP = $(OBJ:.o=.d)
 
-TARGET = build/SnapCodeFlow.exe
+# --------------------------------------------------
+# Windows
+# --------------------------------------------------
 
+ifeq ($(PLATFORM),WINDOWS)
+
+    LUAJIT_INCLUDE = C:/msys64/ucrt64/include/luajit-2.1
+
+    CXXFLAGS += -I$(LUAJIT_INCLUDE)
+
+    LDLIBS = \
+        -lraylib \
+        -lopengl32 \
+        -lgdi32 \
+        -lwinmm \
+        -lcomdlg32 \
+        -lluajit-5.1
+
+    TARGET = build/SnapCodeFlow.exe
+
+    MKDIR = @if not exist "$(dir $@)" mkdir "$(dir $@)"
+    RUNCMD = $(TARGET)
+    CLEAN = @if exist build rmdir /S /Q build
+
+# --------------------------------------------------
+# Linux
+# --------------------------------------------------
+
+else
+
+    CXXFLAGS += $(shell pkg-config --cflags luajit)
+
+    LDLIBS = \
+        -lraylib \
+        $(shell pkg-config --libs luajit)
+
+    TARGET = build/SnapCodeFlow
+
+    MKDIR = @mkdir -p "$(dir $@)"
+    RUNCMD = ./$(TARGET)
+    CLEAN = @rm -rf build
+
+endif
+
+# --------------------------------------------------
+# Cibles
+# --------------------------------------------------
 
 all: $(TARGET)
 
 
 $(TARGET): $(OBJ)
-	$(CXX) $(OBJ) -o $@ $(LDFLAGS)
+	$(CXX) $(OBJ) -o $@ $(LDLIBS)
 
 
 build/obj/%.o: %.cpp
-	@if not exist "$(dir $@)" mkdir "$(dir $@)"
+	$(MKDIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 
 clean:
-	@if exist build rmdir /S /Q build
+	$(CLEAN)
 
 
 run: $(TARGET)
-	$(TARGET)
+	$(RUNCMD)
 
 -include $(DEP)
