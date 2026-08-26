@@ -52,10 +52,15 @@ struct Main {
             ss >> width >> height;
             UnloadFileText(settings);
         }
-        //SetWindowState(FLAG_WINDOW_RESIZABLE);
-        SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
+        SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
         InitWindow(width, height, "Test");
-        rlImGuiSetup(true);
+
+        std::cout << "dpi x is " << GetWindowScaleDPI().x << std::endl;
+
+        rlImGuiBeginInitImGui();
+        ImGui::StyleColorsDark();
+        //ImGui::StyleColorsLight();
+        rlImGuiEndInitImGui();
     }
 
     void MainLoop() {
@@ -140,8 +145,8 @@ struct TestInstructions : Main {
                     }
 
                     char buf[64];
-                    sprintf(buf, "Cluster #%p of size %lld", b->cluster, b->cluster->size());
-                    ImGui::LabelText(buf, ss.str().c_str());
+                    sprintf(buf, "Cluster #%p of size %li", b->cluster, b->cluster->size());
+                    ImGui::LabelText(buf, "%s", ss.str().c_str());
                 }
             }
         }
@@ -287,7 +292,7 @@ struct TestLuaBindings : Main {
                 ImGui::PushID(1);
                 const SnapBlocDesc::List* lt = SnapBlocDesc::GetListFromTag(tag);
                 if (!lt) continue;
-                if (ImGui::TreeNode(tag.c_str(), "%s (%lli)", tag.c_str(), lt->size())) {
+                if (ImGui::TreeNode(tag.c_str(), "%s (%li)", tag.c_str(), lt->size())) {
                     for(const auto& sbd : *lt) {
                         if (ImGui::TreeNode(sbd->name.c_str())) {
                             ImGui::TreeNodeEx(sbd->name.c_str(), leafflags, "ID %i", sbd->order);

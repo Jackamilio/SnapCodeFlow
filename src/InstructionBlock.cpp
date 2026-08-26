@@ -16,7 +16,7 @@ InstructionBlock::InstructionBlock(const SnapBlocDesc& description, Vector2 star
 
 void InstructionBlock::Widget() {
     ImGui::SetCursorScreenPos(GetOrigin() + pos);
-    ImGui::LabelText("##invisible", desc.name.c_str());
+    ImGui::LabelText("##invisible", "%s", desc.name.c_str());
 }
 
 float InstructionBlock::GetClusterHeight() const {
