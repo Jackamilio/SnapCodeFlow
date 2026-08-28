@@ -145,7 +145,7 @@ struct TestInstructions : Main {
                     }
 
                     char buf[64];
-                    sprintf(buf, "Cluster #%p of size %li", b->cluster, b->cluster->size());
+                    sprintf(buf, "Cluster #%p of size %zu", b->cluster, b->cluster->size());
                     ImGui::LabelText(buf, "%s", ss.str().c_str());
                 }
             }
@@ -292,7 +292,7 @@ struct TestLuaBindings : Main {
                 ImGui::PushID(1);
                 const SnapBlocDesc::List* lt = SnapBlocDesc::GetListFromTag(tag);
                 if (!lt) continue;
-                if (ImGui::TreeNode(tag.c_str(), "%s (%li)", tag.c_str(), lt->size())) {
+                if (ImGui::TreeNode(tag.c_str(), "%s (%zu)", tag.c_str(), lt->size())) {
                     for(const auto& sbd : *lt) {
                         if (ImGui::TreeNode(sbd->name.c_str())) {
                             ImGui::TreeNodeEx(sbd->name.c_str(), leafflags, "ID %i", sbd->order);

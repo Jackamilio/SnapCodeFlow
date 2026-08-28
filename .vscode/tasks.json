@@ -4,8 +4,12 @@
         {
             "label": "Build",
             "type": "shell",
-            "command": "make",
-            "args": [],
+            "windows": {
+                "command": "mingw32-make"
+            },
+            "linux": {
+                "command": "make"
+            },
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -17,8 +21,14 @@
         {
             "label": "Clean",
             "type": "shell",
-            "command": "make",
-            "args": ["clean"],
+            "windows": {
+                "command": "mingw32-make",
+                "args": ["clean"]
+            },
+            "linux": {
+                "command": "make",
+                "args": ["clean"]
+            },
             "problemMatcher": []
         }
     ]
