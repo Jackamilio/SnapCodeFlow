@@ -15,7 +15,7 @@ struct InstructionBlock : SnapBlock
 
     InstructionBlock(const SnapBlocDesc& description, Vector2 startpos = Vector2{0.0f, 0.0f});
 
-    void Widget() override;
+    bool Widget() override;
 
     float GetClusterHeight() const;
 

@@ -20,7 +20,6 @@
 #include "bindings.h"
 #include <lua.hpp>
 
-void ImGui::ShowDemoWindow(bool* p_open);
 std::map<const SnapBlock*, unsigned int> blockIDs;
 
 // struct InstructionBlockDebug : InstructionBlock {

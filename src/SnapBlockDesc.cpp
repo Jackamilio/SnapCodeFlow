@@ -37,7 +37,12 @@ const char* SnapBlocDesc::Load() {
     int order=0;
     for(const auto& f : functions) {
         string fname = f["name"];
-        SnapBlocDesc* bloc = new SnapBlocDesc{order++,fname,f["description"],set<string>()};
+        SnapBlocDesc* bloc = new SnapBlocDesc{order++,fname,f["description"],f["returnType"],vector<Parameter>(),set<string>()};
+        if (f.contains("params")) {
+            for(const auto& p: f["params"]) {
+                bloc->params.push_back({p["type"],p["name"]});
+            }            
+        }
         blocsPerTags[tagall].add(bloc);
         if (tagsperfunc[fname].empty()) {
             blocsPerTags[tagnone].add(bloc);

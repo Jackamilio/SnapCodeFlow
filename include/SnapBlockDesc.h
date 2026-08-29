@@ -9,9 +9,19 @@ struct SnapBlocDesc {
     static const char* Load();
     static void Unload();
 
+    typedef std::string DataType; // todo as enum or something like that
+
     int order;
     std::string name;
     std::string desc;
+    DataType returntype;
+
+    struct Parameter {
+        DataType type;
+        std::string name;
+    };
+
+    std::vector<Parameter> params;
 
     std::set<std::string> tags;
     struct CompareOrder {

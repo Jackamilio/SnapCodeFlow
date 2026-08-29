@@ -14,9 +14,35 @@ InstructionBlock::InstructionBlock(const SnapBlocDesc& description, Vector2 star
     size.y = 30.0f;
 }
 
-void InstructionBlock::Widget() {
-    ImGui::SetCursorScreenPos(GetOrigin() + pos);
-    ImGui::LabelText("##invisible", "%s", desc.name.c_str());
+void ToolTip(const char* desc)
+{
+    if (ImGui::BeginItemTooltip())
+    {
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+        ImGui::TextUnformatted(desc);
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
+    }
+}
+
+bool InstructionBlock::Widget() {
+    ToolTip(desc.desc.c_str()); // should apply to the invisible button made by SnapBlock
+    bool ret = true;
+    Vector2 start = GetOrigin() + pos;
+    ImGui::SetCursorScreenPos(start);
+    ImGui::AlignTextToFramePadding();
+    ImGui::Text("%s", desc.name.c_str());
+    for(const auto& p : desc.params) {
+        std::string label = std::string("##") + p.name;
+        static float test;
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(50.0f);
+        ImGui::InputFloat(label.c_str(),&test);
+        if (ImGui::IsItemActive()) ret = false;
+        ToolTip(p.name.c_str());
+    }
+    size = ImGui::GetItemRectMax() - start;
+    return ret;
 }
 
 float InstructionBlock::GetClusterHeight() const {

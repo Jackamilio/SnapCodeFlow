@@ -84,7 +84,7 @@ public:
     SnapBlock* GetSnapDrop(Vector2& o_droploc, Container& cont);
     void SnapWith(SnapBlock& other, const Vector2& at);
 
-    virtual void Widget();
+    virtual bool Widget(); // Child must return true if it allows the block to be dragged, false otherwise. Useful when input widgets are edited.
     virtual void DrawLining(ImDrawList *drawList, const Vector2& pos);
     virtual void DrawShadow(ImDrawList *drawList, const Vector2& pos);
     virtual bool CanSnap(Vector2& io_at, const SnapBlock* from) const;

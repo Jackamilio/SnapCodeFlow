@@ -229,15 +229,15 @@ void SnapBlock::Update() {
 
     ImGui::PushID(this);
 
-    ImGui::InvisibleButton("##snapblock", size);
+    ImGui::InvisibleButton("##snapblock", size, ImGuiButtonFlags_AllowOverlap);
 
     DrawLining(ImGui::GetWindowDrawList(), orig + pos);
 
-    if (ImGui::IsItemClicked()) {
+    bool blockClicked = ImGui::IsItemClicked();
+
+    if (Widget() && blockClicked) {
         setDraggedBlock = this;
     }
-
-    Widget();
 
     ImGui::PopID();
     ImGui::SetCursorScreenPos(savescreenpos);
@@ -280,7 +280,8 @@ void SnapBlock::MergeClusters(SnapBlock &other)
     delete old;
 }
 
-void SnapBlock::Widget() {
+bool SnapBlock::Widget() {
+    return true;
 }
 
 void SnapBlock::DrawLining(ImDrawList *drawList, const Vector2 &pos)
