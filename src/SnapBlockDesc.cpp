@@ -3,6 +3,7 @@
 #include <nlohmann/json.hpp>
 #include <iostream>
 #include <fstream>
+#include <set>
 
 using namespace nlohmann;
 using namespace std;
@@ -14,6 +15,8 @@ const char* tagnone = "_notag";
 
 const char* SnapBlocDesc::Load() {
     LOAD_RAYLIB_API_JSON
+
+    TypeDesc::Init();
 
     ifstream tagfile("raylib_tags.csv");
     if(!tagfile.is_open()) {
@@ -37,10 +40,10 @@ const char* SnapBlocDesc::Load() {
     int order=0;
     for(const auto& f : functions) {
         string fname = f["name"];
-        SnapBlocDesc* bloc = new SnapBlocDesc{order++,fname,f["description"],f["returnType"],vector<Parameter>(),set<string>()};
+        SnapBlocDesc* bloc = new SnapBlocDesc{order++,fname,f["description"],TypeDesc(f["returnType"]),vector<Parameter>(),set<string>()};
         if (f.contains("params")) {
             for(const auto& p: f["params"]) {
-                bloc->params.push_back({p["type"],p["name"]});
+                bloc->params.push_back({TypeDesc(p["type"]),p["name"]});
             }            
         }
         blocsPerTags[tagall].add(bloc);
@@ -54,6 +57,7 @@ const char* SnapBlocDesc::Load() {
             }
         }
     }
+
     return nullptr;
 }
 

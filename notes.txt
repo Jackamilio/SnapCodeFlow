@@ -1,0 +1,90 @@
+raylib_api.json types in functions are :
+
+// pointeurs et autre
+...;
+char **;
+Rectangle **;
+AutomationEventList *;
+Camera *;
+Color *;
+GlyphInfo *;
+Image *;
+Material *;
+Mesh *;
+ModelAnimation *;
+Model *;
+Texture2D *;
+Vector2 *;
+Wave *;
+char *;
+float *;
+int *;
+void *;
+unsigned char *;
+unsigned int *;
+const GlyphInfo *;
+const Matrix *;
+const Vector2 *;
+const Vector3 *;
+const char *;
+const float *;
+const int *;
+const unsigned char *;
+const void *;
+
+// basiques
+bool;
+int;
+unsigned int;
+float;
+void;
+
+// basiques todo
+char;
+double;
+long;
+
+// implémentés par TypeDesc et TypeDesc::Memory (+ basiques)
+Color;
+Vector2;
+
+// Facile mais todo
+Matrix;
+Vector3;
+Vector4;
+
+// le reste
+AudioCallback;
+AudioStream;
+AutomationEvent;
+AutomationEventList;
+BoundingBox;
+Camera;
+Camera2D;
+Camera3D;
+FilePathList;
+Font;
+GlyphInfo;
+Image;
+LoadFileDataCallback;
+LoadFileTextCallback;
+Material;
+Mesh;
+Model;
+ModelAnimation;
+Music;
+NPatchInfo;
+Ray;
+RayCollision;
+Rectangle;
+RenderTexture2D;
+SaveFileDataCallback;
+SaveFileTextCallback;
+Shader;
+Sound;
+Texture2D;
+TextureCubemap;
+TraceLogCallback;
+VrDeviceInfo;
+VrStereoConfig;
+Wave;

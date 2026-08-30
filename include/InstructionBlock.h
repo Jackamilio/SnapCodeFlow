@@ -8,6 +8,8 @@
 struct InstructionBlock : SnapBlock
 {
     const SnapBlocDesc& desc;
+    std::vector<void*> values;
+
     Vector2* anchor;
 
     InstructionBlock* topsibling;
@@ -32,5 +34,5 @@ struct InstructionBlock : SnapBlock
     void Unsnap() override;
 
 protected:
-    ~InstructionBlock() override = default;
+    ~InstructionBlock() override;
 };

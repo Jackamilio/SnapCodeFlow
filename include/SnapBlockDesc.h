@@ -4,20 +4,19 @@
 #include <vector>
 #include <set>
 #include <map>
+#include "TypeDesc.h"
 
 struct SnapBlocDesc {
     static const char* Load();
     static void Unload();
 
-    typedef std::string DataType; // todo as enum or something like that
-
     int order;
     std::string name;
     std::string desc;
-    DataType returntype;
+    TypeDesc returntype;
 
     struct Parameter {
-        DataType type;
+        TypeDesc type;
         std::string name;
     };
 
