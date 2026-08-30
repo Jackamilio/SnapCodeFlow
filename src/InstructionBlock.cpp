@@ -28,7 +28,7 @@ InstructionBlock::~InstructionBlock() {
     unsigned int i = 0;
     for(const auto& p : desc.params) {
         if (values[i]) {
-            ::operator delete(values[i], std::align_val_t(p.type.memory.alignment));
+            ::operator delete(values[i], p.type.memory.size, std::align_val_t(p.type.memory.alignment));
         }
         ++i;
     }
@@ -51,12 +51,28 @@ inline void Vec2xyMax(const Vector2& compare, Vector2& inout) {
 
 template<typename T>
 void SetNexItemWidthFromValue(T value, const char* format) {
-    char buffer[32];
+    char buffer[64];
     std::snprintf(buffer, sizeof(buffer), format, value);
-
     float width = ImGui::CalcTextSize(buffer).x + ImGui::GetStyle().FramePadding.x * 2.0f;
-
     ImGui::SetNextItemWidth(width);
+}
+
+std::map<ImGuiDataType, const char*> formats = {
+    {ImGuiDataType_U32,"%u"},
+    {ImGuiDataType_S32,"%d"},
+    {ImGuiDataType_Float,"%.2f"},
+};
+
+bool DragScalar(const char* id, ImGuiDataType type, void* val) {
+    auto it = formats.find(type);
+    const char* format = it == formats.end() ? nullptr : it->second;
+    switch(type) {
+        case ImGuiDataType_U32: SetNexItemWidthFromValue(*static_cast<unsigned int*>(val), format); break;
+        case ImGuiDataType_S32: SetNexItemWidthFromValue(*static_cast<int*>(val), format); break;
+        case ImGuiDataType_Float: SetNexItemWidthFromValue(*static_cast<float*>(val), format); break;
+        default: ImGui::SetNextItemWidth(80.0f); break;
+    }
+    return ImGui::DragScalar(id,type,val,1.0f,nullptr,nullptr,format);
 }
 
 bool ImGuiInputParam(const TypeDesc& td, const char* id, void* data) {
@@ -69,26 +85,31 @@ bool ImGuiInputParam(const TypeDesc& td, const char* id, void* data) {
         return ImGui::Checkbox(id, static_cast<bool*>(data));
 
     if (td.baseType == "int") {
-        SetNexItemWidthFromValue(*static_cast<int*>(data), "%d");
-        if (td.isUnsigned)
-            return ImGui::InputScalar(id, ImGuiDataType_U32, static_cast<int*>(data));
-        else
-            return ImGui::InputInt(id, static_cast<int*>(data), 0, 0);
+        return DragScalar(id, td.isUnsigned ? ImGuiDataType_U32 : ImGuiDataType_S32, data);
     }
 
     if (td.baseType == "float") {
-        const char* format = "%.2f";
-        SetNexItemWidthFromValue(*static_cast<float*>(data), format);
-        return ImGui::InputFloat(id, static_cast<float*>(data), 0.0f, 0.0f, format);
+        return DragScalar(id, ImGuiDataType_Float, data);
     }
 
     if (td.baseType == "Color") {
-        return ImGui::ColorEdit4(id, static_cast<float*>(data), ImGuiColorEditFlags_NoInputs);
+        Color& col = *static_cast<Color*>(data);
+        float fcol[4] = {col.r/255.0f,col.g/255.0f,col.b/255.0f,col.a/255.0f};
+        bool ret = ImGui::ColorEdit4(id, fcol, ImGuiColorEditFlags_NoInputs);
+        col = {(unsigned char)(fcol[0]*255.0f),(unsigned char)(fcol[1]*255.0f),(unsigned char)(fcol[2]*255.0f),(unsigned char)(fcol[3]*255.0f)};
+        return ret;
     }
 
     if (td.baseType == "Vector2") {
-        ImGui::SetNextItemWidth(80.0f);
-        return ImGui::InputFloat2(id, static_cast<float*>(data), "%.2f");
+        Vector2& vec = *static_cast<Vector2*>(data);
+        ImGui::PushID(id);
+        ImGui::BeginGroup();
+        bool ret1 = DragScalar("##x", ImGuiDataType_Float, &vec.x);
+        ImGui::SameLine(0.0f,ImGui::GetStyle().ItemInnerSpacing.x);
+        bool ret2 = DragScalar("##y", ImGuiDataType_Float, &vec.y);
+        ImGui::EndGroup();
+        ImGui::PopID();
+        return ret1 || ret2;
     }
 
     ImGui::Text("%s", td.baseType.c_str());

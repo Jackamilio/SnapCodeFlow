@@ -146,7 +146,7 @@ IsPathDirectory,file,
 IsPathAbsolute,file,
 IsFileNameValid,file,
 LoadDirectoryFiles,file,
-LoadDirectoryFilesEx,file,
+LoadDirectoryFilesEx,file,test
 UnloadDirectoryFiles,file,
 IsFileDropped,file,
 LoadDroppedFiles,file,

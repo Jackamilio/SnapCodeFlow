@@ -90,8 +90,7 @@ struct Main {
 };
 
 struct TestInstructions : Main {
-    SnapBlock::Container c1;
-    SnapBlock::Container c2;
+    SnapBlock::Container coding;
 
     SnapBlock::Container models;
 
@@ -153,13 +152,12 @@ struct TestInstructions : Main {
 
     void Loop() override {
 
-        TrackInstructionBlockClusters(c1);
-        c1.Update();
+        // TrackInstructionBlockClusters(c1);
+        // c1.Update();
 
-        ImGui::Begin("Fenetre");
+        ImGui::Begin("Coding area");
 
-        c2.Update();
-        ImGui::Text("Bonjour");
+        coding.Update();
 
         ImGui::End();
 
