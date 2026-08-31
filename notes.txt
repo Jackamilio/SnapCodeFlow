@@ -38,13 +38,11 @@ int;
 unsigned int;
 float;
 void;
-
-// basiques todo
 char;
 double;
 long;
 
-// implémentés par TypeDesc et TypeDesc::Memory (+ basiques)
+// widgets implémentés dans InstructionBlock.cpp (+basiques)
 Color;
 Vector2;
 

@@ -32,7 +32,7 @@ TypeDesc::TypeDesc(const std::string &parsetype) {
             auto arrayEnd = word.find(']', arrayStart);
 
             if (arrayEnd != std::string::npos) {
-                isArray = true;
+                arraySize = 0;
 
                 std::string size =
                     word.substr(

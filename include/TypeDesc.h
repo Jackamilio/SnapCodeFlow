@@ -13,9 +13,11 @@ struct TypeDesc {
     bool isUnsigned = false;
 
     int pointerDepth = 0;
+    int arraySize = -1;
 
-    bool isArray = false;
-    int arraySize = 0;
+    inline bool isPointer() const {return pointerDepth > 0;}
+    inline bool isArray() const {return arraySize >= 0;}
+    inline bool isString() const {return baseType == "char" && pointerDepth == 1;}
 
     struct Memory {
         size_t size = 0;
