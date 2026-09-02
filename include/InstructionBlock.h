@@ -33,6 +33,8 @@ struct InstructionBlock : SnapBlock
 
     void Unsnap() override;
 
+    std::string ToLuaString() const;
+
 protected:
     ~InstructionBlock() override;
 };

@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include "utils.h"
 #include <misc/cpp/imgui_stdlib.h>
+#include <sstream>
 
 InstructionBlock::InstructionBlock(const SnapBlocDesc& description, Vector2 startpos)
     : SnapBlock(startpos)
@@ -142,16 +143,18 @@ bool ImGuiInputParam(const TypeDesc& td, const char* id, void* data) {
         return false;
     }
 
-    if (td.baseType == "bool")
+    const std::string& tn = td.GetTypeName();
+
+    if (tn == "bool")
         return ImGui::Checkbox(id, static_cast<bool*>(data));
 
     // basic types
-    auto it = toImGuiType.find({td.baseType, td.isUnsigned});
+    auto it = toImGuiType.find({tn, td.isUnsigned});
     if (it != toImGuiType.end()) {
         return DragScalar(id, it->second, data);
     }
 
-    if (td.baseType == "Color") {
+    if (tn == "Color") {
         Color& col = *static_cast<Color*>(data);
         float fcol[4] = {col.r/255.0f,col.g/255.0f,col.b/255.0f,col.a/255.0f};
         bool ret = ImGui::ColorEdit4(id, fcol, ImGuiColorEditFlags_NoInputs);
@@ -159,7 +162,7 @@ bool ImGuiInputParam(const TypeDesc& td, const char* id, void* data) {
         return ret;
     }
 
-    if (td.baseType == "Vector2") {
+    if (tn == "Vector2") {
         Vector2& vec = *static_cast<Vector2*>(data);
         ImGui::PushID(id);
         ImGui::BeginGroup();
@@ -171,7 +174,7 @@ bool ImGuiInputParam(const TypeDesc& td, const char* id, void* data) {
         return ret1 || ret2;
     }
 
-    ImGui::Text("%s", td.baseType.c_str());
+    ImGui::Text("%s", tn.c_str());
     return false;
 }
 
@@ -330,4 +333,24 @@ void InstructionBlock::Unsnap() {
             current = current->bottomsibling;
         }
     }
+}
+
+std::string InstructionBlock::ToLuaString() const {
+    std::stringstream ss;
+
+    ss << desc.prefix << desc.name << '(';
+    bool first = true;
+    for (const auto& p : desc.params) {
+        if (first) {
+            first = false;
+        } else {
+            ss << ", ";
+        }
+        if (p.type.baseType) {
+            // TODO
+        }
+    }
+    ss << ")\n";
+
+    return ss.str();
 }

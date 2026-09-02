@@ -13,11 +13,12 @@ map<string, SnapBlocDesc::List> blocsPerTags;
 const char* tagall = "_all";
 const char* tagnone = "_notag";
 
+const char* SnapBlocDesc::prefix = "rl."; // maybe give a way to the user to change it in the future
+
 const char* SnapBlocDesc::Load() {
     LOAD_RAYLIB_API_JSON
 
-    TypeDesc::Init();
-
+    //  ----------- TAGS ----------- 
     ifstream tagfile("raylib_tags.csv");
     if(!tagfile.is_open()) {
         return "Could not open \"raylib_tags.csv\"";
@@ -37,6 +38,8 @@ const char* SnapBlocDesc::Load() {
         }
     }
 
+    // ----------- FUNCTIONS ----------- 
+    TypeDesc::Init(structs, aliases, callbacks);
     int order=0;
     for(const auto& f : functions) {
         string fname = f["name"];

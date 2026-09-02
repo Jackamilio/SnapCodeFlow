@@ -3,11 +3,13 @@
 #include <raylib.h>
 #include "imgui_ext.h"
 #include <string>
+#include <set>
 
-inline ImU32 toImGuiCol(Color c)
-{
+inline ImU32 toImGuiCol(Color c) {
     return IM_COL32(c.r, c.g, c.b, c.a);
 }
+
+extern std::set<std::string> basicTypes;
 
 std::string OpenFileDialog();
 

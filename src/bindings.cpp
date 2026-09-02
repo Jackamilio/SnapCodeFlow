@@ -11,28 +11,6 @@
 using namespace nlohmann;
 using namespace std;
 
-set<string> basicTypes = {
-    "void",
-    "char",
-    "bool",
-    "short",
-    "int",
-    "long",
-    "float",
-    "double",
-
-    "size_t",
-
-    "int8_t",
-    "uint8_t",
-    "int16_t",
-    "uint16_t",
-    "int32_t",
-    "uint32_t",
-    "int64_t",
-    "uint64_t"
-};
-
 #define UNROLLDEF(func) \
     func(INT) \
     func(FLOAT) \
@@ -213,10 +191,22 @@ const char* GenerateLuaRaylibBindings(const char* outputfile) {
     // end the cdecl
     out << "]]" << endl << endl << "local rl = ffi.load(\"libraylib\")" << endl;
 
-    // put define constants in a metatable
+    // put struct constructors and then define constants in a metatable
     out << "local coltype = ffi.typeof(\"Color\")" << endl << endl;
     out << "local PI = 3.141592653589793" << endl; // for FLOAT_MATH, by hand, I don't want to write a preprocessor for two values
     out << "local M = setmetatable({" << endl;
+    for(const auto& s : structs) {
+        string name = (string)s["name"];
+        out << "    " << name << " = ffi.typeof(\"" << name << "\")," << endl;
+        // alias if any
+        auto alias = aliasmap.find(name);
+        if (alias != aliasmap.end()) {
+            for (const auto& a : alias->second) {
+                if (a.find('*') == std::string::npos) // exception for "*ModelAnimPose" maybe fix this in the future
+                    out << "    " << a << " = ffi.typeof(\"" << a << "\")," << endl;
+            }
+        }
+    }
     for(const auto& d: defines) {
         string name = d["name"];
         switch(validDefineTypes[d["type"]]) {

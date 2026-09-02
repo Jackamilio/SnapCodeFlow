@@ -10,6 +10,8 @@ struct SnapBlocDesc {
     static const char* Load();
     static void Unload();
 
+    static const char* prefix;
+
     int order;
     std::string name;
     std::string desc;

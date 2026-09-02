@@ -132,7 +132,7 @@ void GameContext::Loop() {
 
     if (!error.empty()) {
         ClearBackground(BLACK);
-        DrawText(error.c_str(), 10, 10, 12, WHITE);
+        DrawText(error.c_str(), 10, 10, 20, WHITE);
     }
     else {
         ClearBackground(clearColor);
