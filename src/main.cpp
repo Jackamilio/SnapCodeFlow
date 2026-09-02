@@ -70,7 +70,7 @@ struct Main {
 
             ImGui::ShowDemoWindow();
             Loop();
-            
+
             BeginDrawing();
             ClearBackground(DARKGRAY);
             rlImGuiEnd();
@@ -89,16 +89,92 @@ struct Main {
     }
 };
 
+struct GameContext {
+    unsigned int width;
+    unsigned int height;
+    RenderTexture2D render;
+    ImTextureRef imguiTexture;
+    Color clearColor;
+    lua_State* lua;
+    std::string code;
+    std::string error;
+
+    GameContext();
+    ~GameContext();
+
+    void Loop();
+    void ImGuiDebug();
+
+    void SubmitCode(const std::string& codestr);
+};
+
+GameContext::GameContext()
+    : width(640)
+    , height(480)
+    , render(LoadRenderTexture(width,height))
+    , imguiTexture((ImTextureID)render.texture.id)
+    , clearColor({225,255,255,255})
+    , lua(luaL_newstate()) {
+    luaL_openlibs(lua);
+    if (luaL_dostring(lua, "rl = require(\"raylib\")") != LUA_OK) {
+        error = lua_tostring(lua, -1);
+        lua_pop(lua, 1);
+    }
+}
+
+GameContext::~GameContext() {
+    lua_close(lua);
+    UnloadRenderTexture(render);
+}
+
+void GameContext::Loop() {
+    BeginTextureMode(render);
+
+    if (!error.empty()) {
+        ClearBackground(BLACK);
+        DrawText(error.c_str(), 10, 10, 12, WHITE);
+    }
+    else {
+        ClearBackground(clearColor);
+
+        if (!code.empty()) {
+            if (luaL_dostring(lua, code.c_str()) != LUA_OK) {
+                error = lua_tostring(lua, -1);
+                code.clear();
+                lua_pop(lua, 1);
+            }
+        }
+    }
+
+    EndTextureMode();
+}
+
+void GameContext::ImGuiDebug() {
+    if (ImGui::Begin("Game Preview")) {
+        ImGui::Image(imguiTexture, Vector2{(float)width,(float)height}, Vector2(0,1), Vector2(1,0));
+        ImGui::End();
+    }
+}
+
+void GameContext::SubmitCode(const std::string& codestr) {
+    error.clear();
+    code = codestr;
+}
+
 struct TestInstructions : Main {
     SnapBlock::Container coding;
 
     SnapBlock::Container models;
 
+    GameContext game;
+
+    char commandtest[512];
+
     // void NewRandomBlock() {
     //     c1.Add(new InstructionBlockDebug({(float)GetRandomValue(10,210),(float)GetRandomValue(10,210)}));
     // }
 
-    TestInstructions() : models(nullptr) {
+    TestInstructions() : models(nullptr), commandtest("rl.DrawFPS(10,10)") {
         SnapBlocDesc::Load();
 
         const SnapBlocDesc::List* tm = SnapBlocDesc::GetListFromTag("test");
@@ -156,14 +232,19 @@ struct TestInstructions : Main {
         // c1.Update();
 
         ImGui::Begin("Coding area");
-
+        ImGui::InputText("Lua command", commandtest, 512);
+        if (ImGui::Button("Try command")) {
+            game.SubmitCode(commandtest);
+        }
         coding.Update();
-
         ImGui::End();
 
         ImGui::Begin("Models");
         models.Update();
         ImGui::End();
+
+        game.Loop();
+        game.ImGuiDebug();
     }
 };
 
