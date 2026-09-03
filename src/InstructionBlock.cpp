@@ -5,7 +5,7 @@
 #include <misc/cpp/imgui_stdlib.h>
 #include <sstream>
 
-InstructionBlock::InstructionBlock(const SnapBlocDesc& description, Vector2 startpos)
+InstructionBlock::InstructionBlock(const FunctionDesc& description, Vector2 startpos)
     : SnapBlock(startpos)
     , desc(description)
     , anchor(nullptr)
@@ -338,7 +338,7 @@ void InstructionBlock::Unsnap() {
 std::string InstructionBlock::ToLuaString() const {
     std::stringstream ss;
 
-    ss << desc.prefix << desc.name << '(';
+    ss << DataDesc::prefix << desc.name << '(';
     bool first = true;
     for (const auto& p : desc.params) {
         if (first) {

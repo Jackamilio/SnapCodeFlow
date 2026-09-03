@@ -14,7 +14,7 @@
 #include "SnapBlock.h"
 #include "PuzzlePiece.h"
 #include "InstructionBlock.h"
-#include "SnapBlockDesc.h"
+#include "DataDesc.h"
 
 #include "utils.h"
 #include "bindings.h"
@@ -175,9 +175,9 @@ struct TestInstructions : Main {
     // }
 
     TestInstructions() : models(nullptr), commandtest("rl.DrawFPS(10,10)") {
-        SnapBlocDesc::Load();
+        DataDesc::Load();
 
-        const SnapBlocDesc::List* tm = SnapBlocDesc::GetListFromTag("test");
+        const FunctionDesc::List* tm = DataDesc::GetFunctionsListFromTag("test");
 
         if (!tm) return;
         Vector2 mpos{10,50};
@@ -199,7 +199,7 @@ struct TestInstructions : Main {
         }
         
         SnapBlock::Clean();
-        SnapBlocDesc::Unload();
+        DataDesc::Unload();
     }
 
     static void TrackInstructionBlockClusters(const SnapBlock::Container& container) {
@@ -336,7 +336,7 @@ struct TestLuaBindings : Main {
 
     TestLuaBindings() : lua(luaL_newstate()), commandtest("print('Hello from Lua!')"), loopcommand(false) {
         luaL_openlibs(lua);
-        SnapBlocDesc::Load();
+        DataDesc::Load();
     }
 
     void ExecCommand() {
@@ -366,9 +366,9 @@ struct TestLuaBindings : Main {
 
         if (ImGui::TreeNode("Functions per tags")) {
             const ImGuiTreeNodeFlags leafflags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen;
-            for(const auto& tag : SnapBlocDesc::GetTags()) {
+            for(const auto& tag : DataDesc::GetFunctionTags()) {
                 ImGui::PushID(1);
-                const SnapBlocDesc::List* lt = SnapBlocDesc::GetListFromTag(tag);
+                const FunctionDesc::List* lt = DataDesc::GetFunctionsListFromTag(tag);
                 if (!lt) continue;
                 if (ImGui::TreeNode(tag.c_str(), "%s (%zu)", tag.c_str(), lt->size())) {
                     for(const auto& sbd : *lt) {
@@ -395,7 +395,7 @@ struct TestLuaBindings : Main {
     }
 
     ~TestLuaBindings() {
-        SnapBlocDesc::Unload();
+        DataDesc::Unload();
         lua_close(lua);
     }
 };

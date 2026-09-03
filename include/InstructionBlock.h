@@ -3,11 +3,11 @@
 #include <map>
 
 #include "SnapBlock.h"
-#include "SnapBlockDesc.h"
+#include "DataDesc.h"
 
 struct InstructionBlock : SnapBlock
 {
-    const SnapBlocDesc& desc;
+    const FunctionDesc& desc;
     std::vector<void*> values;
 
     Vector2* anchor;
@@ -15,7 +15,7 @@ struct InstructionBlock : SnapBlock
     InstructionBlock* topsibling;
     InstructionBlock* bottomsibling;
 
-    InstructionBlock(const SnapBlocDesc& description, Vector2 startpos = Vector2{0.0f, 0.0f});
+    InstructionBlock(const FunctionDesc& description, Vector2 startpos = Vector2{0.0f, 0.0f});
 
     bool Widget() override;
 
