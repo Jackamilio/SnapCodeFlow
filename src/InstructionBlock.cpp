@@ -72,12 +72,12 @@ void SetNextItemWidthFromText(const char* text, float min = 0.0f) {
     ImGui::SetNextItemWidth(min > width ? min : width);
 }
 
-template<typename T>
-void SetNextItemWidthFromValue(T value, const char* format) {
-    char buffer[64];
-    std::snprintf(buffer, sizeof(buffer), format, value);
-    SetNextItemWidthFromText(buffer);
-}
+// template<typename T>
+// void SetNextItemWidthFromValue(T value, const char* format) {
+//     char buffer[64];
+//     std::snprintf(buffer, sizeof(buffer), format, value);
+//     SetNextItemWidthFromText(buffer);
+// }
 
 const std::map<ImGuiDataType, const char*> formats = {
     {ImGuiDataType_S8,"%d"},
@@ -105,23 +105,40 @@ const std::map<std::pair<std::string,bool>,ImGuiDataType> toImGuiType = {
     {{"double",false}, ImGuiDataType_Double},
 };
 
+inline const char* GetPrintfFormatFromImGuiDataType(ImGuiDataType type) {
+    auto it = formats.find(type);
+    return it == formats.end() ? nullptr : it->second;
+}
+
+bool ImGuiDataTypeValueToString(ImGuiDataType type, void* value, char* stringbuffer, size_t buffersize, const char* format = nullptr) {
+    if (!format)
+        format = GetPrintfFormatFromImGuiDataType(type);
+    
+    switch(type) {
+        case ImGuiDataType_S8: return std::snprintf(stringbuffer, buffersize, format, *static_cast<char*>(value)) >= 0;
+        case ImGuiDataType_U8: return std::snprintf(stringbuffer, buffersize, format, *static_cast<unsigned char*>(value)) >= 0;
+        case ImGuiDataType_S16: return std::snprintf(stringbuffer, buffersize, format, *static_cast<short*>(value)) >= 0;
+        case ImGuiDataType_U16: return std::snprintf(stringbuffer, buffersize, format, *static_cast<unsigned short*>(value)) >= 0;
+        case ImGuiDataType_S32: return std::snprintf(stringbuffer, buffersize, format, *static_cast<int*>(value)) >= 0;
+        case ImGuiDataType_U32: return std::snprintf(stringbuffer, buffersize, format, *static_cast<unsigned int*>(value)) >= 0;
+        case ImGuiDataType_S64: return std::snprintf(stringbuffer, buffersize, format, *static_cast<long long*>(value)) >= 0;
+        case ImGuiDataType_U64: return std::snprintf(stringbuffer, buffersize, format, *static_cast<unsigned long long*>(value)) >= 0;
+        case ImGuiDataType_Float: return std::snprintf(stringbuffer, buffersize, format, *static_cast<float*>(value)) >= 0;
+        case ImGuiDataType_Double: return std::snprintf(stringbuffer, buffersize, format, *static_cast<double*>(value)) >= 0;
+        default: return false;
+    }
+}
+
 const float defaultWidgetWidth = 60.0f;
 
 bool DragScalar(const char* id, ImGuiDataType type, void* val) {
-    auto it = formats.find(type);
-    const char* format = it == formats.end() ? nullptr : it->second;
-    switch(type) {
-        case ImGuiDataType_S8: SetNextItemWidthFromValue(*static_cast<char*>(val), format); break;
-        case ImGuiDataType_U8: SetNextItemWidthFromValue(*static_cast<unsigned char*>(val), format); break;
-        case ImGuiDataType_S16: SetNextItemWidthFromValue(*static_cast<short*>(val), format); break;
-        case ImGuiDataType_U16: SetNextItemWidthFromValue(*static_cast<unsigned short*>(val), format); break;
-        case ImGuiDataType_S32: SetNextItemWidthFromValue(*static_cast<int*>(val), format); break;
-        case ImGuiDataType_U32: SetNextItemWidthFromValue(*static_cast<unsigned int*>(val), format); break;
-        case ImGuiDataType_S64: SetNextItemWidthFromValue(*static_cast<long long*>(val), format); break;
-        case ImGuiDataType_U64: SetNextItemWidthFromValue(*static_cast<unsigned long long*>(val), format); break;
-        case ImGuiDataType_Float: SetNextItemWidthFromValue(*static_cast<float*>(val), format); break;
-        case ImGuiDataType_Double: SetNextItemWidthFromValue(*static_cast<double*>(val), format); break;
-        default: ImGui::SetNextItemWidth(defaultWidgetWidth); break;
+    const char* format = GetPrintfFormatFromImGuiDataType(type);
+    char buffer[64];
+    if (ImGuiDataTypeValueToString(type,val,buffer,sizeof(buffer),format)) {
+        SetNextItemWidthFromText(buffer);
+    }
+    else {
+        ImGui::SetNextItemWidth(defaultWidgetWidth);
     }
     return ImGui::DragScalar(id,type,val,1.0f,nullptr,nullptr,format);
 }
@@ -335,19 +352,60 @@ void InstructionBlock::Unsnap() {
     }
 }
 
-std::string InstructionBlock::ToLuaString() const {
+std::string FieldsToLuaString(const FieldsDesc& fields, const std::vector<void*>& values) {
     std::stringstream ss;
 
-    ss << DataDesc::prefix << desc.name << '(';
     bool first = true;
-    for (const auto& p : desc.params) {
+    char buffer[64];
+    for (unsigned int i=0; i < fields.size(); ++i) {
+        const FieldDesc& p = fields[i];
         if (first) {
             first = false;
         } else {
             ss << ", ";
         }
         if (p.type.baseType) {
-            // TODO
+            auto it = toImGuiType.find({*p.type.baseType, p.type.isUnsigned});
+            if (it != toImGuiType.end() && values[i] != nullptr) {
+                ImGuiDataTypeValueToString(it->second,values[i],buffer,sizeof(buffer));
+            }
+            else {
+                ss << "error";
+            }
+        }
+        else if (p.type.structref) {
+            ss << DataDesc::prefix << p.type.structref->name << '(';
+            //ss << FieldsToLuaString(p.type.structref->fields) // HOLDING CODING SESSSION I just realized values must always represent a basic type, and ImGuiInputParam must be recursive as well, handling small exceptions such as Color
+        }
+        else {
+            ss << "error";
+        }
+    }
+
+    return ss.str();
+}
+
+std::string InstructionBlock::ToLuaString() const {
+    std::stringstream ss;
+
+    ss << DataDesc::prefix << desc.name << '(';
+    bool first = true;
+    char buffer[64];
+    for (unsigned int i=0; i < values.size(); ++i) {
+        const FieldDesc& p = desc.params[i];
+        if (first) {
+            first = false;
+        } else {
+            ss << ", ";
+        }
+        if (p.type.baseType) {
+            auto it = toImGuiType.find({*p.type.baseType, p.type.isUnsigned});
+            if (it != toImGuiType.end() && values[i] != nullptr) {
+                ImGuiDataTypeValueToString(it->second,values[i],buffer,sizeof(buffer));
+            }
+            else {
+                ss << "error";
+            }
         }
     }
     ss << ")\n";
