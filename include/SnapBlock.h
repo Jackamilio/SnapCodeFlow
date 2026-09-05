@@ -37,6 +37,7 @@ struct SnapBlock {
         void Add(Cluster* cl);
         void Erase(SnapBlock* sb);
         void Erase(Cluster* cl);
+        inline const std::set<Cluster*>& GetClusters() {return clusters;}
 
         OrderedSet GetAllOrdered() const;
 

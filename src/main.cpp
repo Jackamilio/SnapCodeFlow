@@ -161,8 +161,22 @@ void GameContext::SubmitCode(const std::string& codestr) {
     code = codestr;
 }
 
+struct InstructionClusterCompareY {
+    bool operator()(const SnapBlock::Cluster* a, const SnapBlock::Cluster*b) const {
+        assert(!a->empty() && !b->empty());
+        InstructionBlock* iba = dynamic_cast<InstructionBlock*>(*a->begin());
+        InstructionBlock* ibb = dynamic_cast<InstructionBlock*>(*b->begin());
+        assert(iba && ibb);
+        iba = iba->GetFirstSibling();
+        ibb = ibb->GetFirstSibling();
+        return iba->pos.y == ibb->pos.y ? a < b : iba->pos.y < ibb->pos.y;
+    }
+};
+
 struct TestInstructions : Main {
     SnapBlock::Container coding;
+
+    std::string code;
 
     SnapBlock::Container models;
 
@@ -226,18 +240,60 @@ struct TestInstructions : Main {
         }
     }
 
-    void Loop() override {
+    void GenerateLuaCode() {
+        std::stringstream ss;
 
-        // TrackInstructionBlockClusters(c1);
-        // c1.Update();
+        std::set<SnapBlock::Cluster*, InstructionClusterCompareY> orderedClusters;
+        for(auto& c : coding.GetClusters()) {
+            orderedClusters.emplace(c);
+        }
+
+        for(SnapBlock::Cluster* c : orderedClusters) {
+            InstructionBlock* ib = dynamic_cast<InstructionBlock*>(*c->begin())->GetFirstSibling();
+            while (ib) {
+                if (!ib) continue;
+                ss << ib->ToLuaString();
+                ib = ib->bottomsibling;
+            }
+        }
+
+        code = ss.str();
+    }
+
+    bool continuouscode = false;
+
+    void Loop() override {
 
         ImGui::Begin("Coding area");
         ImGui::InputText("Lua command", commandtest, 512);
         if (ImGui::Button("Try command")) {
             game.SubmitCode(commandtest);
         }
+        if (ImGui::Button("Generate code")) {
+            GenerateLuaCode();
+        }
+        if (continuouscode) ImGui::BeginDisabled();
+        if (ImGui::Button("Try generated code")) {
+            game.SubmitCode(code);
+        }
+        if (continuouscode) ImGui::EndDisabled();
+        ImGui::SameLine();
+        ImGui::Checkbox("continuously", &continuouscode);
+        if (continuouscode) {
+            GenerateLuaCode();
+            game.SubmitCode(code);
+        }
+        if (!game.error.empty()) continuouscode = false;
+        ImGui::Text("There is currently %lli clusters.", coding.GetClusters().size());
         coding.Update();
         ImGui::End();
+
+        bool showcode = !code.empty();
+        if (showcode && ImGui::Begin("Generated code", &showcode)) {
+            ImGui::Text(code.c_str());
+            ImGui::End();
+        }
+        if (!showcode) code.clear();
 
         ImGui::Begin("Models");
         models.Update();
@@ -317,6 +373,8 @@ struct TestSimpleBlocks : Main {
 
     void Loop() override {
         ImGui::Begin("Plain blocks");
+
+        ImGui::Text("There is currently %lli clusters.", c.GetClusters().size());
 
         c.Update();
 

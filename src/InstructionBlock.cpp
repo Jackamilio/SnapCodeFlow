@@ -5,12 +5,26 @@
 #include <misc/cpp/imgui_stdlib.h>
 #include <sstream>
 
+#define LEAFTYPE_ENUM(name) LeafType_##name,
+#define LEAFTYPE_MAP(name) {#name, LeafType_##name},
+#define UNROLL_LEAFTYPE(func) \
+    func(Color) \
+    func(Matrix)
+
+enum {
+    UNROLL_LEAFTYPE(LEAFTYPE_ENUM)
+};
+
+const std::map<std::string, int> leafTypeMap = {
+    UNROLL_LEAFTYPE(LEAFTYPE_MAP)
+};
+
 bool IsLeafType(const TypeDesc& type) {
     if (type.baseType) {
         return true;
     }
     else if (type.structref) {
-        return type.structref->name == "Color";
+        return leafTypeMap.find(type.structref->name) != leafTypeMap.end();
     }
     else {
         assert(false);
@@ -195,12 +209,12 @@ bool ImGuiInputParam(const TypeDesc& td, const char* id, void* data) {
         return false;
     }
 
+    // leaf types
     const std::string& tn = td.GetTypeName();
 
     if (tn == "bool")
         return ImGui::Checkbox(id, static_cast<bool*>(data));
 
-    // leaf types
     auto it = toImGuiType.find({tn, td.isUnsigned});
     if (it != toImGuiType.end()) {
         return DragScalar(id, it->second, data);
@@ -269,7 +283,9 @@ bool InstructionBlock::Widget() {
     ImGui::AlignTextToFramePadding();
     ImGui::Text("%s", desc.name.c_str());
 
-    return ImGuiInputRecursive(desc.params,"##fields",values);
+    bool ret = ImGuiInputRecursive(desc.params,"##fields",values);
+    size = ImGui::GetItemRectMax() - start;
+    return ret;
 }
 
 float InstructionBlock::GetClusterHeight() const {
@@ -388,7 +404,7 @@ void InstructionBlock::Unsnap() {
 
         SnapBlock::Unsnap();
     }
-    else if (cluster->size() > 1) {
+    else if (cluster->size() > 1 && topsibling) {
         if (topsibling) {
             topsibling->bottomsibling = nullptr;
             topsibling = nullptr;
@@ -406,13 +422,14 @@ void InstructionBlock::Unsnap() {
     }
 }
 
-std::string FieldsToLuaString(const FieldsDesc& fields, const InstructionBlock::DataArray& values) {
+std::string FieldsToLuaStringRecursive(const FieldsDesc& fields, const InstructionBlock::DataArray& values) {
     std::stringstream ss;
 
     bool first = true;
     char buffer[64];
     for (unsigned int i=0; i < fields.size(); ++i) {
         const FieldDesc& p = fields[i];
+        void* value = values[i];
         if (first) {
             first = false;
         } else {
@@ -420,8 +437,9 @@ std::string FieldsToLuaString(const FieldsDesc& fields, const InstructionBlock::
         }
         if (p.type.baseType) {
             auto it = toImGuiType.find({*p.type.baseType, p.type.isUnsigned});
-            if (it != toImGuiType.end() && values[i] != nullptr) {
-                ImGuiDataTypeValueToString(it->second,values[i],buffer,sizeof(buffer));
+            if (it != toImGuiType.end() && value != nullptr) {
+                ImGuiDataTypeValueToString(it->second,value,buffer,sizeof(buffer));
+                ss << buffer;
             }
             else {
                 ss << "error";
@@ -429,10 +447,31 @@ std::string FieldsToLuaString(const FieldsDesc& fields, const InstructionBlock::
         }
         else if (p.type.structref) {
             ss << DataDesc::prefix << p.type.structref->name << '(';
-            //ss << FieldsToLuaString(p.type.structref->fields) // HOLDING CODING SESSSION I just realized values must always represent a basic type, and ImGuiInputParam must be recursive as well, handling small exceptions such as Color
+            if (IsLeafType(p.type)) {
+                const std::string& tn = p.type.structref->name;
+                int leaftype = -1;
+                const auto it = leafTypeMap.find(tn);
+                if (it != leafTypeMap.end()) leaftype = it->second;
+                switch (leaftype) {
+                case LeafType_Color: {
+                    const Color& c = *static_cast<Color*>(value);
+                    ss << (int)c.r << ',' << (int)c.g << ',' << (int)c.b << ',' << (int)c.a;
+                } break;
+                case LeafType_Matrix: {
+                    const float* m = static_cast<float*>(value);
+                    for(unsigned int i=0; i<15;++i) ss << m[i] << ',';
+                    ss << m[15];
+                } break;
+                default: ss << "Type " << tn << " unhandled"; break;
+                }   
+            }
+            else {
+                ss << FieldsToLuaStringRecursive(p.type.structref->fields, *static_cast<InstructionBlock::DataArray*>(value));
+            }
+            ss << ')';
         }
         else {
-            ss << "error";
+            assert(false);
         }
     }
 
@@ -442,27 +481,7 @@ std::string FieldsToLuaString(const FieldsDesc& fields, const InstructionBlock::
 std::string InstructionBlock::ToLuaString() const {
     std::stringstream ss;
 
-    ss << DataDesc::prefix << desc.name << '(';
-    bool first = true;
-    char buffer[64];
-    for (unsigned int i=0; i < values.size(); ++i) {
-        const FieldDesc& p = desc.params[i];
-        if (first) {
-            first = false;
-        } else {
-            ss << ", ";
-        }
-        if (p.type.baseType) {
-            auto it = toImGuiType.find({*p.type.baseType, p.type.isUnsigned});
-            if (it != toImGuiType.end() && values[i] != nullptr) {
-                ss << ImGuiDataTypeValueToString(it->second,values[i],buffer,sizeof(buffer));
-            }
-            else {
-                ss << "error";
-            }
-        }
-    }
-    ss << ")\n";
+    ss << DataDesc::prefix << desc.name << '(' << FieldsToLuaStringRecursive(desc.params, values) << ")\n";
 
     return ss.str();
 }
