@@ -7,8 +7,10 @@
 
 struct InstructionBlock : SnapBlock
 {
+    typedef std::vector<void*> DataArray;
+
     const FunctionDesc& desc;
-    std::vector<void*> values;
+    DataArray values;
 
     Vector2* anchor;
 

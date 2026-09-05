@@ -5,6 +5,48 @@
 #include <misc/cpp/imgui_stdlib.h>
 #include <sstream>
 
+bool IsLeafType(const TypeDesc& type) {
+    if (type.baseType) {
+        return true;
+    }
+    else if (type.structref) {
+        return type.structref->name == "Color";
+    }
+    else {
+        assert(false);
+    }
+}
+
+void InitDataRecursive(const FieldsDesc& fields, InstructionBlock::DataArray& values) {
+    for (const auto& p : fields) {
+        void* value = nullptr;
+        if (IsLeafType(p.type)) {
+            const TypeDesc::Memory& mem = p.type.memory;
+            if (mem.size > 0) {
+                if (p.type.isString()) {
+                    value = new std::string;
+                }
+                else if (p.type.isPointer()) {
+                    // todo pointers
+                }
+                else {
+                    value = ::operator new(mem.size, std::align_val_t(mem.alignment));
+                    memset(value,0,mem.size);
+                }
+            }
+        }
+        else if (p.type.structref) {
+            value = new InstructionBlock::DataArray;
+            InitDataRecursive(p.type.structref->fields, *static_cast<InstructionBlock::DataArray*>(value));
+        }
+        else {
+            assert(false);
+            // error
+        }
+        values.push_back(value);
+    }
+}
+
 InstructionBlock::InstructionBlock(const FunctionDesc& description, Vector2 startpos)
     : SnapBlock(startpos)
     , desc(description)
@@ -15,41 +57,39 @@ InstructionBlock::InstructionBlock(const FunctionDesc& description, Vector2 star
     size.x = (float)GetRandomValue(80,250);
     size.y = 30.0f;
 
-    for(const auto& p : desc.params) {
-        const TypeDesc::Memory& mem = p.type.memory;
-        void* val = nullptr;
-        if (mem.size > 0) {
+    InitDataRecursive(desc.params, values);
+}
+
+void DeleteDataRecursive(const FieldsDesc& fields, InstructionBlock::DataArray& values) {
+    for(unsigned int i=0; i<fields.size(); ++i) {
+        const auto& p = fields[i];
+        void* value = values[i];
+        if (!value) continue;
+        if (IsLeafType(p.type)) {
             if (p.type.isString()) {
-                val = new std::string;
+                delete static_cast<std::string*>(value);
             }
             else if (p.type.isPointer()) {
                 // todo pointers
             }
             else {
-                val = ::operator new(mem.size, std::align_val_t(mem.alignment));
-                memset(val,0,mem.size);
+                ::operator delete(value, p.type.memory.size, std::align_val_t(p.type.memory.alignment));
             }
         }
-        values.push_back(val);
+        else if (p.type.structref) {
+            InstructionBlock::DataArray* vda = static_cast<InstructionBlock::DataArray*>(value);
+            DeleteDataRecursive(p.type.structref->fields, *vda);
+            delete vda;
+        }
+        else {
+            // error
+            assert(false);
+        }
     }
 }
 
 InstructionBlock::~InstructionBlock() {
-    unsigned int i = 0;
-    for(const auto& p : desc.params) {
-        if (values[i]) {
-            if (p.type.isString()) {
-                delete static_cast<std::string*>(values[i]);
-            }
-            else if (p.type.isPointer()) {
-                // todo pointers
-            }
-            else {
-                ::operator delete(values[i], p.type.memory.size, std::align_val_t(p.type.memory.alignment));
-            }
-        }
-        ++i;
-    }
+    DeleteDataRecursive(desc.params,values);
 }
 
 void ToolTip(const char* desc)
@@ -71,13 +111,6 @@ void SetNextItemWidthFromText(const char* text, float min = 0.0f) {
     float width = ImGui::CalcTextSize(text).x + ImGui::GetStyle().FramePadding.x * 2.0f;
     ImGui::SetNextItemWidth(min > width ? min : width);
 }
-
-// template<typename T>
-// void SetNextItemWidthFromValue(T value, const char* format) {
-//     char buffer[64];
-//     std::snprintf(buffer, sizeof(buffer), format, value);
-//     SetNextItemWidthFromText(buffer);
-// }
 
 const std::map<ImGuiDataType, const char*> formats = {
     {ImGuiDataType_S8,"%d"},
@@ -144,6 +177,8 @@ bool DragScalar(const char* id, ImGuiDataType type, void* val) {
 }
 
 bool ImGuiInputParam(const TypeDesc& td, const char* id, void* data) {
+    assert(IsLeafType(td));
+
     if (!data) {
         ImGui::Text("No data");
         return false;
@@ -165,7 +200,7 @@ bool ImGuiInputParam(const TypeDesc& td, const char* id, void* data) {
     if (tn == "bool")
         return ImGui::Checkbox(id, static_cast<bool*>(data));
 
-    // basic types
+    // leaf types
     auto it = toImGuiType.find({tn, td.isUnsigned});
     if (it != toImGuiType.end()) {
         return DragScalar(id, it->second, data);
@@ -179,43 +214,62 @@ bool ImGuiInputParam(const TypeDesc& td, const char* id, void* data) {
         return ret;
     }
 
-    if (tn == "Vector2") {
-        Vector2& vec = *static_cast<Vector2*>(data);
-        ImGui::PushID(id);
-        ImGui::BeginGroup();
-        bool ret1 = DragScalar("##x", ImGuiDataType_Float, &vec.x);
-        ImGui::SameLine(0.0f,ImGui::GetStyle().ItemInnerSpacing.x);
-        bool ret2 = DragScalar("##y", ImGuiDataType_Float, &vec.y);
-        ImGui::EndGroup();
-        ImGui::PopID();
-        return ret1 || ret2;
-    }
-
     ImGui::Text("%s", tn.c_str());
     return false;
 }
 
+std::vector<const char*> fieldnamestack;
+void FieldNameStackToolTip() {
+    std::stringstream ss;
+
+    for(const char* str : fieldnamestack) {
+        ss << str;
+    }
+
+    ToolTip(ss.str().c_str());
+}
+
+bool ImGuiInputRecursive(const FieldsDesc& fields, const char* id, InstructionBlock::DataArray& values) {
+    ImGui::PushID(id);
+    ImGui::BeginGroup();
+    bool ret = true;
+    for (unsigned int i=0; i < fields.size(); ++i) {
+        const FieldDesc& p = fields[i];
+        void* data = values[i];
+        std::string label = std::string("##") + p.name;
+        fieldnamestack.push_back(p.name.c_str());
+        ImGui::SameLine();
+        if (IsLeafType(p.type)) {
+            ImGuiInputParam(p.type, label.c_str(), data);
+            if (ImGui::IsItemActive()) ret = false;
+            FieldNameStackToolTip();
+        }
+        else if (p.type.structref) {
+            fieldnamestack.push_back(".");
+            const StructDesc& sd = *p.type.structref;
+            if (!ImGuiInputRecursive(sd.fields, label.c_str(), *static_cast<InstructionBlock::DataArray*>(data)))
+                ret = false;
+            fieldnamestack.pop_back();
+        }
+        else {
+            // error
+            assert(false);
+        }
+        fieldnamestack.pop_back();
+    }
+    ImGui::EndGroup();
+    ImGui::PopID();
+    return ret;
+}
+
 bool InstructionBlock::Widget() {
     ToolTip(desc.desc.c_str()); // should apply to the invisible button made by SnapBlock
-    bool ret = true;
     Vector2 start = GetOrigin() + pos;
     ImGui::SetCursorScreenPos(start + Vector2{ImGui::GetStyle().ItemInnerSpacing.x,0.0f});
     ImGui::AlignTextToFramePadding();
     ImGui::Text("%s", desc.name.c_str());
-    Vector2 rectmax = ImGui::GetItemRectMax();
-    unsigned int i=0;
-    for(const auto& p : desc.params) {
-        std::string label = std::string("##") + p.name;
-        //static std::array<std::byte, 16> test;
-        ImGui::SameLine();
-        ImGuiInputParam(p.type, label.c_str(), values[i++]);
-        //ImGui::InputFloat(label.c_str(),&test);
-        Vec2xyMax(ImGui::GetItemRectMax(), rectmax);
-        if (ImGui::IsItemActive()) ret = false;
-        ToolTip(p.name.c_str());
-    }
-    size = rectmax - start;
-    return ret;
+
+    return ImGuiInputRecursive(desc.params,"##fields",values);
 }
 
 float InstructionBlock::GetClusterHeight() const {
@@ -352,7 +406,7 @@ void InstructionBlock::Unsnap() {
     }
 }
 
-std::string FieldsToLuaString(const FieldsDesc& fields, const std::vector<void*>& values) {
+std::string FieldsToLuaString(const FieldsDesc& fields, const InstructionBlock::DataArray& values) {
     std::stringstream ss;
 
     bool first = true;
@@ -401,7 +455,7 @@ std::string InstructionBlock::ToLuaString() const {
         if (p.type.baseType) {
             auto it = toImGuiType.find({*p.type.baseType, p.type.isUnsigned});
             if (it != toImGuiType.end() && values[i] != nullptr) {
-                ImGuiDataTypeValueToString(it->second,values[i],buffer,sizeof(buffer));
+                ss << ImGuiDataTypeValueToString(it->second,values[i],buffer,sizeof(buffer));
             }
             else {
                 ss << "error";
