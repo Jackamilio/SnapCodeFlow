@@ -1,0 +1,14 @@
+ -------- WINDOWS --------
+1) Installer vs code
+2) Installer Msys2 (tout par défaut)
+3) Mettre MSYS2 UCRT64 dans Path
+    C:\msys64\ucrt64\bin
+4) Installer le toolchain sur MSYS2 UCRT64
+    pacman -S mingw-w64-ucrt-x86_64-toolchain
+5) Installer les dépendances à travers MSYS2 UCRT64
+ a) raylib : pacman -S mingw-w64-ucrt-x86_64-raylib
+ b) luajit : pacman -S mingw-w64-ucrt-x86_64-luajit
+ c) nlohmann-json : pacman -S mingw-w64-ucrt-x86_64-nlohmann-json
+6) Choisir les bonnes tâches
+ a) "Windows UCRT64" ou "Linux GCC" tout en bas à droite de vscode
+ b) "Windows" ou "Linux" dans le debugger, quatrième icone tout à gauche

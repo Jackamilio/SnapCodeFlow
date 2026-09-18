@@ -81,9 +81,9 @@ struct Main {
     virtual void Loop() = 0;
 
     virtual ~Main() {
-        std::stringstream ss;
-        ss << GetScreenWidth() << ' ' << GetScreenHeight();
-        SaveFileText("settings.txt",ss.str().c_str());
+        char buffer[256];
+        snprintf(buffer,sizeof(buffer),"%i %i", GetScreenWidth(), GetScreenHeight());
+        SaveFileText("settings.txt",buffer);
         rlImGuiShutdown();
         CloseWindow();
     }
@@ -460,9 +460,9 @@ struct TestLuaBindings : Main {
 
 int main()
 {
-    //TestSimpleBlocks().MainLoop();
+    TestSimpleBlocks().MainLoop();
     //TestPuzzle().MainLoop();
-    TestInstructions().MainLoop();
+    //TestInstructions().MainLoop();
     //TestLuaBindings().MainLoop();
     return 0;
 }
