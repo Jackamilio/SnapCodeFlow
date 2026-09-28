@@ -126,8 +126,9 @@ void SnapBlock::Container::Update()
     }
 
     ImGui::PushID(this);
-    ImGui::Dummy(ImGui::GetWindowSize());
+    ImGui::Dummy(windowsize);
     ImGui::SetCursorScreenPos(savecursorpos);
+    ImGui::Dummy(ImVec2());
 
     if (type && (draggedBlock || droppedBlock) && ImGui::IsWindowHovered()) {
         Vector2 droploc;
